@@ -1,7 +1,6 @@
 package play.modules.swagger
 
 import play.api.Configuration
-import play.modules.swagger.util.ConfigUtil._
 
 import javax.inject.{ Inject, Provider, Singleton }
 
@@ -20,24 +19,24 @@ case class PlaySwaggerConfig(
 
 @Singleton
 class PlaySwaggerConfigProvider @Inject() (implicit config: Configuration) extends Provider[PlaySwaggerConfig] {
-  val apiVersion = getConfigString("api.version", "beta")
+  val apiVersion = config.get[String]("swagger.api.version")
 
-  val basePath = getConfigString("swagger.api.basepath", "/")
+  val basePath = config.get[String]("swagger.api.basepath")
 
-  val host = getConfigString("swagger.api.host", "localhost:9000")
+  val host = config.get[String]("swagger.api.host")
 
-  val title = getConfigString("swagger.api.info.title")
+  val title = config.get[String]("swagger.api.info.title")
 
-  val description = getConfigString("swagger.api.info.description")
+  val description = config.get[String]("swagger.api.info.description")
 
-  val termsOfServiceUrl = getConfigString("swagger.api.info.termsOfServiceUrl")
+  val termsOfServiceUrl = config.get[String]("swagger.api.info.termsOfService")
 
-  val contact = getConfigString("swagger.api.info.contact")
+  val contact = config.get[String]("swagger.api.info.contact")
 
-  val license = getConfigString("swagger.api.info.license")
+  val license = config.get[String]("swagger.api.info.license")
 
   // licenceUrl needs to be a valid URL to validate against schema
-  val licenseUrl = getConfigString("swagger.api.info.licenseUrl", "http://licenseUrl")
+  val licenseUrl = config.get[String]("swagger.api.info.licenseUrl")
 
   val swaggerConfig = PlaySwaggerConfig(
     null,
