@@ -45,15 +45,9 @@ pomIncludeRepository := { x => false }
 credentials += Credentials(Path.userHome / ".bintray" / ".artifactory")
 organization := "sg.wjtan"
 
+// Removed License from pomExtra to avoid "failed with status code 409: Conflict" error
 pomExtra := {
   <url>http://swagger.io</url>
-  <licenses>
-    <license>
-      <name>Apache License 2.0</name>
-      <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
-      <distribution>repo</distribution>
-    </license>
-  </licenses>
   <scm>
     <url>git@github.com:swagger-api/swagger-play.git</url>
     <connection>scm:git:git@github.com:swagger-api/swagger-play.git</connection>
@@ -83,6 +77,10 @@ pomExtra := {
       <id>frantuma</id>
       <name>Francesco Tumanischvili</name>
       <url>http://www.ft-software.net/</url>
+    </developer>
+    <developer>
+      <id>wjtan</id>
+      <name>Tan Wen Jun</name>
     </developer>
   </developers>
 }
