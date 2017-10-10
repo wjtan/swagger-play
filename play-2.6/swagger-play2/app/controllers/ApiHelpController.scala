@@ -201,8 +201,8 @@ class SwaggerBaseApiController @Inject() (cache: ApiListingCache) extends Inject
     val jsonBytes = toJsonString(data).getBytes("UTF-8")
     val source = Source.single(jsonBytes).map(ByteString.apply)
     Result(
-      header = ResponseHeader(200, Map(CONTENT_LENGTH -> jsonBytes.length.toString)),
-      body = HttpEntity.Streamed(source, None, None)
+      header = ResponseHeader(200),
+      body = HttpEntity.Streamed(source, Option(jsonBytes.length), None)
     ).as("application/json")
   }
 }
