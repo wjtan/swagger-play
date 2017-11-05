@@ -36,6 +36,7 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
   private[this] val logger = Logger[PlayReader]
 
   private[this] val typeFactory = Json.mapper().getTypeFactory()
+  private[this] val modelConverters = new ModelConverters()
   
   val SUCCESSFUL_OPERATION = "successful operation"
   
@@ -484,7 +485,7 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
           }
       }
       if (isValidResponse(responseType)) {
-          val property = ModelConverters.getInstance().readAsProperty(responseType)
+          val property = modelConverters.readAsProperty(responseType)
           if (property != null) {
               val responseProperty = wrapContainer(responseContainer, property)
               val responseCode: Int = Option(apiOperation).map(_.code()).getOrElse(200)
@@ -513,7 +514,7 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
                   response.schema(new RefProperty(apiResponse.reference()))
               } else if (!isVoid(apiResponse.response())) {
                   val responseType2 = apiResponse.response()
-                  val property = ModelConverters.getInstance().readAsProperty(responseType2)
+                  val property = modelConverters.readAsProperty(responseType2)
                   if (property != null) {
                     response.schema(wrapContainer(apiResponse.responseContainer(), property))
                     appendModels(responseType2)
@@ -722,7 +723,7 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
       return output.toSet
   }
   
-  private def createProperty(t: Type): Property = enforcePrimitive(ModelConverters.getInstance().readAsProperty(t), 0)
+  private def createProperty(t: Type): Property = enforcePrimitive(modelConverters.readAsProperty(t), 0)
   
   private def enforcePrimitive(in: Property, level: Int): Property = {
       if (in.isInstanceOf[RefProperty]) {
@@ -740,7 +741,7 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
   }
   
   private def appendModels(t: Type) {
-      val models = ModelConverters.getInstance().readAll(t)
+      val models = modelConverters.readAll(t)
       for (entry <- models.asScala) {
           swagger.model(entry._1, entry._2)
       }
@@ -756,7 +757,7 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
                   val cls = header.response()
                   
                   if (!isVoid(cls)) {
-                      val property = ModelConverters.getInstance().readAsProperty(cls)
+                      val property = modelConverters.readAsProperty(cls)
                       if (property != null) {
                           val responseProperty = wrapContainer(header.responseContainer(), property,
                                                                                      ContainerWrapper.ARRAY, ContainerWrapper.LIST,

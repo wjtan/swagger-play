@@ -3,18 +3,18 @@ version := "1.5.5-SNAPSHOT"
 
 checksums in update := Nil
 
-scalaVersion := "2.12.2"
+scalaVersion := "2.12.3"
 
-crossScalaVersions := Seq("2.12.2")
+crossScalaVersions := Seq("2.12.3")
 
 libraryDependencies ++= Seq(
-  "com.fasterxml.jackson.module"  %% "jackson-module-scala"       % "2.8.8",
+  "com.fasterxml.jackson.module"  %% "jackson-module-scala"       % "2.8.9",
   "org.slf4j"          % "slf4j-api"                  % "1.7.25",
   "com.typesafe.scala-logging" %% "scala-logging"     % "3.5.0",
-  "io.swagger"         % "swagger-core"               % "1.5.15",
-  "io.swagger"        %% "swagger-scala-module"       % "1.0.4",
-  "com.typesafe.play" %% "routes-compiler"            % "2.6.0",
-  "com.typesafe.play" %% "play-ebean"                 % "4.0.2"            % "test",
+  "io.swagger"         % "swagger-core"               % "1.5.16",
+  //"io.swagger"        %% "swagger-scala-module"       % "1.0.4",
+  "com.typesafe.play" %% "routes-compiler"            % "2.6.7",
+  "com.typesafe.play" %% "play-ebean"                 % "4.0.6"            % "test",
   "org.specs2"        %% "specs2-core"                % "3.8.9"            % "test",
   "org.specs2"        %% "specs2-mock"                % "3.8.9"            % "test",
   "org.specs2"        %% "specs2-junit"               % "3.8.9"            % "test",
