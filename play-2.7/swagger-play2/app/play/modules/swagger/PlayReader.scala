@@ -619,49 +619,47 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
       // TODO now consider only parameters defined in route, excluding body parameters
       // understand how to possibly infer body/form params e.g. from @BodyParser or other annotation
       
-      val parameters = ListBuffer.empty[Parameter]
       if (!route.call.parameters.isDefined) {
-          return parameters.toList
+          return List.empty
       }
       
-      val iter = route.call.parameters.get.iterator
+      val parameters = ListBuffer.empty[Parameter]
       
-      var fieldPosition = 0
-      while (iter.hasNext) {
-          val p = iter.next()
+      for((p, fieldPosition) <- route.call.parameters.get.zipWithIndex){
           if (p.fixed.isEmpty) {
-
             var defaultField = CrossUtil.getParameterDefaultField(p)
             if (defaultField.startsWith("\"") && defaultField.endsWith("\"")) {
                 defaultField = defaultField.substring(1, defaultField.length() - 1)
             }
             val t = getParamType(cls, method, p.typeName, fieldPosition)
             
-            val schema = createProperty(t)
-            
-            val parameter: Parameter =
-              if (route.path.has(p.name)) {
-                  // it's a path param
-                  val pathParameter = new PathParameter()
-                  pathParameter.setDefaultValue(defaultField)
-                  if (schema != null) {
-                      pathParameter.setProperty(schema)
-                  }
-                  pathParameter
-              } else {
-                  // it's a query string param
-                  val queryParameter = new QueryParameter()
-                  queryParameter.setDefaultValue(defaultField)
-                  if (schema != null) {
-                      queryParameter.setProperty(schema)
-                  }
-                  queryParameter
-              }
-            parameter.setName(p.name)
-            val annotations = getParamAnnotations(cls, method, p.typeName, fieldPosition)
-            ParameterProcessor.applyAnnotations(swagger, parameter, t, annotations.asJava)
-            parameters += parameter
-            fieldPosition += 1
+            // Ignore play.mvc.Http.Request
+            if(!t.getTypeName.equals("[simple type, class play.mvc.Http$Request]")){
+              val schema = createProperty(t)
+              
+              val parameter: Parameter =
+                if (route.path.has(p.name)) {
+                    // it's a path param
+                    val pathParameter = new PathParameter()
+                    pathParameter.setDefaultValue(defaultField)
+                    if (schema != null) {
+                        pathParameter.setProperty(schema)
+                    }
+                    pathParameter
+                } else {
+                    // it's a query string param
+                    val queryParameter = new QueryParameter()
+                    queryParameter.setDefaultValue(defaultField)
+                    if (schema != null) {
+                        queryParameter.setProperty(schema)
+                    }
+                    queryParameter
+                }
+              parameter.setName(p.name)
+              val annotations = getParamAnnotations(cls, method, p.typeName, fieldPosition)
+              ParameterProcessor.applyAnnotations(swagger, parameter, t, annotations.asJava)
+              parameters += parameter
+            }
           }
       }
       return parameters.toList

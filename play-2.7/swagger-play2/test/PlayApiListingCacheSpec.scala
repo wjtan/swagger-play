@@ -26,7 +26,7 @@ class PlayApiListingCacheSpec extends Specification with Mockito {
   val routesList = {
     play.routes.compiler.RoutesFileParser.parseContent("""
 POST /api/document/:settlementId/files/:fileId/accept testdata.DocumentController.accept(settlementId:String,fileId:String)
-GET /api/search testdata.SettlementsSearcherController.search(personalNumber:String,propertyId:String)
+GET /api/search testdata.SettlementsSearcherController.search(req: Request, personalNumber:String, propertyId:String)
 GET /api/pointsofinterest testdata.PointOfInterestController.list(eastingMin:Double,northingMin:Double,eastingMax:Double,northingMax:Double)
 GET /api/dog testdata.DogController.list
 PUT /api/dog testdata.DogController.add1

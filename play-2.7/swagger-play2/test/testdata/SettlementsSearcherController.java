@@ -25,9 +25,14 @@ public class SettlementsSearcherController extends Controller {
                     @ApiResponse(code = Http.Status.INTERNAL_SERVER_ERROR, message = "Server error")
     })
     @ApiImplicitParams({
-                         @ApiImplicitParam(value = "Token for logged in user", name = "Authorization", required = false, dataType = "string", paramType = "header"),
+                         @ApiImplicitParam(value = "Token for logged in user",
+                                           name = "Authorization",
+                                           required = false,
+                                           dataType = "string",
+                                           paramType = "header"),
     })
-    public Result search(@ApiParam(value = "A personal number of one of the sellers.", example = "0101201112345") String personalNumber,
+    public Result search(Request req,
+                         @ApiParam(value = "A personal number of one of the sellers.", example = "0101201112345") String personalNumber,
                          @ApiParam(value = "The cadastre or share id.", example = "1201-5-1-0-0", required = true) String propertyId) {
         return ok();
     }
