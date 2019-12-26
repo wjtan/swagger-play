@@ -10,7 +10,7 @@ libraryDependencies ++= Seq(
   "org.slf4j"          % "slf4j-api"                  % "1.7.30",
   "com.typesafe.scala-logging" %% "scala-logging"     % "3.9.2",
   "io.swagger.core.v3" % "swagger-core"               % "2.1.0",
-  "io.swagger"        %% "swagger-scala-module"       % "1.0.6",
+  //"io.swagger"        %% "swagger-scala-module"       % "1.0.6",
   "com.typesafe.play" %% "routes-compiler"            % "2.8.0",
   "com.typesafe.play" %% "play-ebean"                 % "5.0.2"            % "test",
   "org.specs2"        %% "specs2-core"                % "4.8.1"            % "test",

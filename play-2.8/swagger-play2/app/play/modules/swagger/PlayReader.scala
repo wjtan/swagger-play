@@ -1,20 +1,24 @@
 package play.modules.swagger
 
-import io.swagger.annotations._
-import io.swagger.converter.ModelConverters
-import io.swagger.models._
-import io.swagger.models.Contact
-import io.swagger.models.ExternalDocs
-import io.swagger.models.Tag
-import io.swagger.models.parameters._
-import io.swagger.models.parameters.Parameter
-import io.swagger.models.properties._
-import io.swagger.models.utils.PropertyModelConverter
-import io.swagger.util.BaseReaderUtils
-import io.swagger.util.Json
-import io.swagger.util.ParameterProcessor
-import io.swagger.util.PrimitiveType
-import io.swagger.util.ReflectionUtils
+//import io.swagger.v3.oas.annotations._
+import io.swagger.v3.oas.annotations.{ Operation => ApiOperation }
+import io.swagger.v3.oas.annotations.responses._
+import io.swagger.v3.core.converter.ModelConverters
+import io.swagger.v3.oas.models.{ExternalDocumentation, _}
+import io.swagger.v3.oas.models.info._
+import io.swagger.v3.oas.models.tags.Tag
+import io.swagger.v3.oas.models.media._
+import io.swagger.v3.oas.models.parameters._
+import io.swagger.v3.oas.models.parameters.Parameter
+import io.swagger.v3.oas.models.properties._
+import io.swagger.v3.oas.models.security._
+import io.swagger.v3.oas.models.servers._
+import io.swagger.v3.oas.models.utils.PropertyModelConverter
+import io.swagger.v3.core.util.BaseReaderUtils
+import io.swagger.v3.core.util.Json
+import io.swagger.v3.core.util.ParameterProcessor
+import io.swagger.v3.core.util.PrimitiveType
+import io.swagger.v3.core.util.ReflectionUtils
 import org.apache.commons.lang3.StringUtils
 import com.typesafe.scalalogging._
 import play.modules.swagger.util.CrossUtil
@@ -31,7 +35,7 @@ import java.util.regex.Pattern
 import javax.inject.Inject
 
 
-class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: PlaySwaggerConfig) {
+class PlayReader @Inject() (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig) {
   private[this] val logger = Logger[PlayReader]
 
   private[this] val typeFactory = Json.mapper.getTypeFactory
@@ -42,7 +46,7 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
   
   import StringUtils._
   
-  def read(classes: Set[Class[_]]): Swagger = {
+  def read(classes: Set[Class[_]]): OpenAPI = {
       // process SwaggerDefinitions first - so we get tags in desired order
       for (cls <- classes) {
           val swaggerDefinition = cls.getAnnotation(classOf[SwaggerDefinition])
@@ -57,18 +61,19 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
       swagger
   }
     
-  def read(cls: Class[_]): Swagger = read(cls, readHidden = false)
+  def read(cls: Class[_]): OpenAPI = read(cls, readHidden = false)
   
-  def read(cls: Class[_], readHidden: Boolean): Swagger = {
-      val api = cls.getAnnotation(classOf[Api])
+  def read(cls: Class[_], readHidden: Boolean): OpenAPI = {
+      val readable = cls.getAnnotation(classOf[Hidden])
       
       val tags = scala.collection.mutable.Map.empty[String, Tag]
       val securities = ListBuffer.empty[SecurityRequirement]
       var consumes = new Array[String](0)
       var produces = new Array[String](0)
-      val globalSchemes = scala.collection.mutable.Set.empty[Scheme]
+      val globalSchemes = scala.collection.mutable.Set.empty[Schemes]
 
-      val readable = (api != null && readHidden) || (api != null && !api.hidden())
+      //val readable = (api != null && readHidden) || (api != null && !api.hidden())
+      val readable
 
       // TODO possibly allow parsing also without @Api annotation
       if (readable) {
@@ -119,7 +124,7 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
               val operationPath = getPathFromRoute(route.path, config.basePath)
 
               if (operationPath != null) {
-                  val apiOperation = ReflectionUtils.getAnnotation(method, classOf[ApiOperation])
+                  val apiOperation = ReflectionUtils.getAnnotation(method, classOf[Operation])
 
                   val httpMethod = extractOperationMethod(apiOperation, method, route)
                   val operation: Operation =
@@ -176,7 +181,7 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
                       if (operation.getSecurity == null) {
                           for (security <- securities) {
                               for(requirement <- security.getRequirements.asScala){
-                                operation.addSecurity(requirement._1, requirement._2)  
+                                operation.addSecurity(requirement._1, requirement._2)
                               }
                           }
                       }
@@ -226,10 +231,10 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
       operationPath.toString
   }
 
-  private def readSwaggerConfig(config: SwaggerDefinition): Unit = {
-      if (!isEmpty(config.basePath())) {
-          swagger.setBasePath(config.basePath())
-      }
+  private def readSwaggerConfig(config: OpenAPIDefinition): Unit = {
+      //if (!isEmpty(config.basePath())) {
+      //    swagger.setBasePath(config.basePath())
+      //}
 
       if (!isEmpty(config.host())) {
           swagger.setHost(config.host())
@@ -250,7 +255,7 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
       }
 
       if (!isEmpty(config.externalDocs.value())) {
-          val externalDocs: ExternalDocs = 
+          val externalDocs: ExternalDocs =
             if(swagger.getExternalDocs != null){
               swagger.getExternalDocs
             } else {
@@ -290,9 +295,98 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
       }
   }
 
+  private def readApiDefinition(annotation: io.swagger.v3.oas.annotations.OpenAPIDefinition): Unit = {
+    api.setInfo(readInfo(annotation.info))
+    api.setTags(annotation.tags.toList.map(readTag(_)).asJava)
+    api.setExternalDocs(readExternalDocumentation(annotation.externalDocs))
+    api.setServers(annotation.servers.toList.map(readServer(_)).asJava)
+    api.setSecurity(annotation.security.toList.map(readSecurityRequirement(_)).asJava)
+    api.setExtensions(readExtensions(annotation.extensions))
+  }
+
+  private def readInfo(annotation: io.swagger.v3.oas.annotations.info.Info): Info = {
+    val obj = new Info()
+    obj.setTitle(annotation.title)
+    obj.setDescription(annotation.description)
+    obj.setVersion(annotation.version)
+    obj.setTermsOfService(annotation.termsOfService)
+    obj.setContact(readContact(annotation.contact))
+    obj.setLicense(readLicense(annotation.license))
+    obj.setExtensions(readExtensions(annotation.extensions))
+    obj
+  }
+
+  private def readContact(annotation: io.swagger.v3.oas.annotations.info.Contact): Contact = {
+    val obj = new Contact()
+    obj.setName(annotation.name)
+    obj.setUrl(annotation.url)
+    obj.setEmail(annotation.email)
+    obj.setExtensions(readExtensions(annotation.extensions))
+    obj
+  }
+
+  private def readLicense(annotation: io.swagger.v3.oas.annotations.info.License): License = {
+    val obj = new License()
+    obj.setName(annotation.name)
+    obj.setUrl(annotation.url)
+    obj.setExtensions(readExtensions(annotation.extensions))
+    obj
+  }
+
+  private def readTag(annotation: io.swagger.v3.oas.annotations.tags.Tag): Tag = {
+    val obj = new Tag()
+    obj.setName(annotation.name)
+    obj.setDescription(annotation.description)
+    obj.setExternalDocs(readExternalDocumentation(annotation.externalDocs))
+    obj.setExtensions(readExtensions(annotation.extensions))
+    obj
+  }
+
+  private def readExternalDocumentation(annotation: io.swagger.v3.oas.annotations.ExternalDocumentation): ExternalDocumentation = {
+    val obj = new ExternalDocumentation()
+    obj.setUrl(annotation.url)
+    obj.setDescription(annotation.description)
+    obj.setExtensions(readExtensions(annotation.extensions))
+    obj
+  }
+
+  private def readServer(annotation: io.swagger.v3.oas.annotations.servers.Server): Server = {
+    val obj = new Server()
+    obj.setUrl(annotation.url)
+    obj.setDescription(annotation.description)
+    obj.setVariables(readServerVariables(annotation.variables))
+    obj.setExtensions(readExtensions(annotation.extensions))
+    obj
+  }
+
+  private def readServerVariables(annotations: Array[io.swagger.v3.oas.annotations.servers.ServerVariable]): ServerVariables = {
+    val obj = new ServerVariables()
+    for(annotation <- annotations) {
+      val obj2 = new ServerVariable()
+      obj2.setEnum(java.util.Arrays.asList(annotation.allowableValues))
+      obj2.setDescription(annotation.description)
+      obj2.setDefault(annotation.defaultValue)
+      obj2.extensions(readExtensions(annotation.extensions))
+      obj.addServerVariable(annotation.name, obj2)
+    }
+    obj
+  }
+
+  private def readSecurityRequirement(annotation: io.swagger.v3.oas.annotations.security.SecurityRequirement): SecurityRequirement = {
+    val obj = new SecurityRequirement()
+    val list: java.util.List[String] = java.util.Arrays.asList(annotation.scopes)
+    obj.addList(annotation.name, list)
+    obj
+  }
+
+  private def readExtensions(annotations: Array[io.swagger.v3.oas.annotations.extensions.Extension]): java.util.Map[String, AnyRef] = {
+    java.util.Collections.emptyMap[String, AnyRef]
+  }
+
+  /*
   private def readInfoConfig(config: SwaggerDefinition): Unit = {
       val infoConfig = config.info()
-      val info: io.swagger.models.Info = 
+      val info: io.swagger.models.Info =
         if (swagger.getInfo != null) {
           swagger.getInfo
         } else {
@@ -318,7 +412,7 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
       }
 
       if (!isEmpty(infoConfig.contact.name)) {
-          val contact: Contact = 
+          val contact: Contact =
             if(info.getContact != null){
               info.getContact
             } else {
@@ -338,7 +432,7 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
       }
 
       if (!isEmpty(infoConfig.license.name)) {
-          val license: io.swagger.models.License = 
+          val license: io.swagger.models.License =
             if(info.getLicense != null){
               info.getLicense
             } else {
@@ -354,7 +448,7 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
       }
 
       info.getVendorExtensions.putAll(BaseReaderUtils.parseExtensions(infoConfig.extensions()))
-  }
+  }*/
 
   private def readImplicitParameters(method: Method, operation: Operation, cls: Class[_]): Unit = {
       val implicitParams = method.getAnnotation(classOf[ApiImplicitParams])
@@ -369,7 +463,7 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
   }
 
   private def readImplicitParam(param: ApiImplicitParam, cls: Class[_]): io.swagger.models.parameters.Parameter = {
-      val p: Parameter = 
+      val p: Parameter =
         if (param.paramType.equalsIgnoreCase("path")) {
             new PathParameter()
         } else if (param.paramType.equalsIgnoreCase("query")) {
@@ -384,7 +478,7 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
             logger.warn("Unkown implicit parameter type: [" + param.paramType() + "]")
             return null
         }
-      
+
       val t: Type =
       // Swagger ReflectionUtils can't handle file or array datatype
         if (!"".equalsIgnoreCase(param.dataType()) && !"file".equalsIgnoreCase(param.dataType()) && !"array".equalsIgnoreCase(param.dataType())) {
@@ -392,7 +486,7 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
         } else {
           classOf[String]
         }
-      
+
       val result = ParameterProcessor.applyAnnotations(swagger, p, t, java.util.Collections.singletonList(param))
 
       if (result.isInstanceOf[AbstractSerializableParameter[_]] && t != null) {
@@ -415,40 +509,40 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
           if (routeType != null) {
               return routeType
           }
-          
+
           return Thread.currentThread.getContextClassLoader.loadClass(t)
       } catch {
         case e: Exception => logger.error(s"Failed to resolve '$t' into class", e)
       }
       null
   }
-  
+
   private def parseMethod(cls: Class[_], method: Method, route: Route): Operation = {
       val operation = new Operation()
-      
+
       val apiOperation = ReflectionUtils.getAnnotation(method, classOf[ApiOperation])
       val responseAnnotation = ReflectionUtils.getAnnotation(method, classOf[ApiResponses])
-      
+
       var operationId = method.getName
       operation.operationId(operationId)
       var responseContainer: String = null
-      
+
       var responseType: Type = null
-      val defaultResponseHeaders = scala.collection.mutable.Map.empty[String, Property]
-      
+      //val defaultResponseHeaders = scala.collection.mutable.Map.empty[String, Property]
+
       if (apiOperation != null) {
           if (apiOperation.hidden()) {
               return null
           }
-          if (!isEmpty(apiOperation.nickname())) {
-              operationId = apiOperation.nickname()
+          if (!isEmpty(apiOperation.operationId)) {
+              operationId = apiOperation.operationId
           }
-          
-          defaultResponseHeaders ++= parseResponseHeaders(apiOperation.responseHeaders())
-          
-          operation.summary(apiOperation.value())
-                   .description(apiOperation.notes())
-                   
+
+          //defaultResponseHeaders ++= parseResponseHeaders(apiOperation.responseHeaders())
+
+          operation.summary(apiOperation.summary)
+                   .description(apiOperation.description)
+
           if (apiOperation.response() != null && !isVoid(apiOperation.response())) {
               responseType = apiOperation.response()
           }
@@ -471,7 +565,7 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
               operation.produces(toArray(apiOperation.produces).toList.asJava)
           }
       }
-      
+
       if (apiOperation != null && StringUtils.isNotEmpty(apiOperation.responseReference())) {
           val response = new Response().description(SUCCESSFUL_OPERATION)
           response.setResponseSchema(new RefModel(apiOperation.responseReference()))
@@ -479,7 +573,7 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
       } else if (responseType == null) {
           // pick out response from method declaration
           val methodResponseType = method.getGenericReturnType
-          
+
           if(!isResult(methodResponseType)){
             responseType = methodResponseType
           }
@@ -496,23 +590,23 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
               appendModels(responseType)
           }
       }
-      
-      
+
+
       operation.operationId(operationId)
-      
+
       if (responseAnnotation != null) {
           for (apiResponse <- responseAnnotation.value()) {
               val responseHeaders = parseResponseHeaders(apiResponse.responseHeaders())
-              
+
               val response = new Response().description(apiResponse.message())
                                            .headers(responseHeaders.asJava)
-                                           
+
               if (apiResponse.code() == 0) {
                   operation.defaultResponse(response)
               } else {
                   operation.response(apiResponse.code(), response)
               }
-              
+
               if (!isEmpty(apiResponse.reference())) {
                   response.setResponseSchema(new RefModel(apiResponse.reference()))
               } else if (!isVoid(apiResponse.response())) {
@@ -529,20 +623,20 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
       if (ReflectionUtils.getAnnotation(method, classOf[Deprecated]) != null) {
           operation.setDeprecated(true)
       }
-      
+
       val parameters = getParameters(cls, method, route)
-      
+
       for(parameter <- parameters){
         operation.parameter(parameter)
       }
-      
+
       if (operation.getResponses == null) {
           val response = new Response().description(SUCCESSFUL_OPERATION)
           operation.defaultResponse(response)
       }
       operation
   }
-  
+
   private val primitiveTypes: Map[String, Class[_]] = Map(
     "Int" -> classOf[java.lang.Integer],
     "Long" -> classOf[java.lang.Long],
@@ -553,13 +647,13 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
     "Double" -> classOf[java.lang.Double],
     "Short" -> classOf[java.lang.Short],
   )
-  
+
   private def getOptionTypeFromString(simpleTypeName: String, cls: Class[_]): Type = {
       if (simpleTypeName == null) {
           return null
       }
       val regex = "(Option|scala\\.Option)\\s*\\[\\s*(Int|Long|Float|Double|Byte|Short|Char|Boolean)\\s*\\]\\s*$"
-      
+
       val pattern = Pattern.compile(regex)
       val matcher = pattern.matcher(simpleTypeName)
       if (matcher.find()) {
@@ -570,14 +664,14 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
           null
       }
   }
-  
+
   private def getParamType(cls: Class[_], method: Method, simpleTypeName: String, position: Int): Type = {
       try {
           val t = getOptionTypeFromString(simpleTypeName, cls)
           if (t != null) {
               return t
           }
-          
+
           val genericParameterTypes = method.getGenericParameterTypes
           val parameterType = genericParameterTypes(position)
           typeFactory.constructType(parameterType)
@@ -588,7 +682,7 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
         }
       }
   }
-  
+
   private def getParamAnnotations(cls: Class[_], genericParameterTypes: Array[Type], paramAnnotations: Array[Array[Annotation]], simpleTypeName: String, fieldPosition: Int): List[Annotation] = {
       try {
         paramAnnotations(fieldPosition).toList
@@ -599,7 +693,7 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
         }
       }
   }
-  
+
   private def getParamAnnotations(cls: Class[_], method: Method, simpleTypeName: String, fieldPosition: Int): List[Annotation] = {
       val genericParameterTypes = method.getGenericParameterTypes
       val paramAnnotations = method.getParameterAnnotations
@@ -607,7 +701,7 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
       if (annotations.nonEmpty) {
           return annotations
       }
-      
+
       // Fallback to type
       for (i <- 0 until genericParameterTypes.length) {
           val annotations2 = getParamAnnotations(cls, genericParameterTypes, paramAnnotations, simpleTypeName, i)
@@ -615,20 +709,20 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
               return annotations2
           }
       }
-      
+
       List.empty
   }
-  
+
   private def getParameters(cls: Class[_], method: Method, route: Route): List[Parameter] = {
       // TODO now consider only parameters defined in route, excluding body parameters
       // understand how to possibly infer body/form params e.g. from @BodyParser or other annotation
-      
+
       if (route.call.parameters.isEmpty) {
           return List.empty
       }
-      
+
       val parameters = ListBuffer.empty[Parameter]
-      
+
       for((p, fieldPosition) <- route.call.parameters.get.zipWithIndex){
           if (p.fixed.isEmpty) {
             var defaultField = CrossUtil.getParameterDefaultField(p)
@@ -636,11 +730,11 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
                 defaultField = defaultField.substring(1, defaultField.length() - 1)
             }
             val t = getParamType(cls, method, p.typeName, fieldPosition)
-            
+
             // Ignore play.mvc.Http.Request
             if(!t.getTypeName.equals("[simple type, class play.mvc.Http$Request]")){
               val schema = createProperty(t)
-              
+
               val parameter: Parameter =
                 if (route.path.has(p.name)) {
                     // it's a path param
@@ -668,7 +762,7 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
       }
       parameters.toList
   }
-  
+
   private def parseSchemes(schemes: String): Set[Scheme] = {
       val result = scala.collection.mutable.Set.empty[Scheme]
       for (item <- trimToEmpty(schemes).split(",")) {
@@ -679,18 +773,18 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
       }
       result.toSet
   }
-  
+
   private def isVoid(t: Type): Boolean = {
     val cls = typeFactory.constructType(t).getRawClass
     classOf[Void].isAssignableFrom(cls) || Void.TYPE.isAssignableFrom(cls)
   }
-  
+
   // Play Result
   private def isResult(t: Type): Boolean = {
     val cls = typeFactory.constructType(t).getRawClass
     classOf[play.api.mvc.Result].isAssignableFrom(cls) || classOf[play.mvc.Result].isAssignableFrom(cls)
   }
-  
+
   private def isValidResponse(t: Type): Boolean =  {
       if (t == null) {
           return false
@@ -702,12 +796,12 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
       val cls = javaType.getRawClass
       !isResourceClass(cls)
   }
-  
+
   private def isResourceClass(cls: Class[_]) = cls.getAnnotation(classOf[Api]) != null
-  
+
   private def extractTags(api: Api): Set[String] = {
       val output = scala.collection.mutable.Set.empty[String]
-      
+
       var hasExplicitTags = false
       for (tag <- api.tags()) {
           if (!tag.isEmpty) {
@@ -724,40 +818,40 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
       }
       output.toSet
   }
-  
+
   private def createProperty(t: Type): Property = enforcePrimitive(modelConverters.readAsProperty(t), 0)
-  
-  private def enforcePrimitive(in: Property, level: Int): Property = {
+
+  private def enforcePrimitive(in: Schema[_], level: Int): Schema[_] = {
       if (in.isInstanceOf[RefProperty]) {
-          return new StringProperty()
+          return new StringSchema()
       }
-      if (in.isInstanceOf[ArrayProperty]) {
+      if (in.isInstanceOf[ArraySchema]) {
           if (level == 0) {
-              val array = in.asInstanceOf[ArrayProperty]
+              val array = in.asInstanceOf[ArraySchema]
               array.setItems(enforcePrimitive(array.getItems, level + 1))
           } else {
-              return new StringProperty()
+              return new StringSchema()
           }
       }
       in
   }
-  
+
   private def appendModels(t: Type): Unit = {
       val models = modelConverters.readAll(t)
       for ((modelName, model) <- models.asScala) {
-        swagger.model(modelName, model)
+        api.schema(modelName, model)
       }
   }
-  
-  private def parseResponseHeaders(headers: Array[ResponseHeader]): Map[String, Property] = {
-      val responseHeaders = scala.collection.mutable.Map.empty[String, Property]
+
+  private def parseResponseHeaders(headers: Array[io.swagger.v3.oas.annotations.headers.Header]): Map[String, Schema[_]] = {
+      val responseHeaders = scala.collection.mutable.Map.empty[String, Schema[_]]
       if (headers != null && headers.length > 0) {
           for (header <- headers) {
               val name = header.name()
               if (!isEmpty(name)) {
                   val description = header.description()
                   val cls = header.response()
-                  
+
                   if (!isVoid(cls)) {
                       val property = modelConverters.readAsProperty(cls)
                       if (property != null) {
@@ -774,7 +868,7 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
       }
       responseHeaders.toMap
   }
-  
+
   private def getFullMethodName(clazz: Class[_], method: Method): String = {
       if (!clazz.getCanonicalName.contains("$")) {
           clazz.getCanonicalName + "$." + method.getName
@@ -782,7 +876,7 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
           clazz.getCanonicalName + "." + method.getName
       }
   }
-  
+
   private def extractOperationMethod(apiOperation: ApiOperation, method: Method, route: Route): String =  {
     if (route != null) {
         try {
@@ -791,8 +885,8 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
           case e: Exception => logger.error(s"http method not found for method: ${method.getName}", e)
         }
     }
-    if (!isEmpty(apiOperation.httpMethod())) {
-        return apiOperation.httpMethod()
+    if (!isEmpty(apiOperation.method())) {
+        return apiOperation.method()
     }
     null
   }
@@ -811,7 +905,7 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
   }
   
   private object ContainerWrapper {
-    type Wrapper = (String, (Property) => Property)
+    type Wrapper = (String, (Schema[_]) => Schema[_])
     
     val LIST: Wrapper = ("list", wrapList)
     val ARRAY: Wrapper = ("array", wrapList)
@@ -820,16 +914,16 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
     
     val ALL = List(LIST, ARRAY, MAP, SET)
     
-    def wrapList(property: Property): Property = new ArrayProperty(property)
-    def wrapMap(property: Property): Property = new MapProperty(property)
-    def wrapSet(property: Property): Property = {
-      val arrayProperty = new ArrayProperty(property)
+    def wrapList(schema: Schema[_]): Schema[_] = new ArraySchema(schema)
+    def wrapMap(schema: Schema[_]): Schema[_] = new MapSchema(schema)
+    def wrapSet(schema: Schema[_]): Schema[_] = {
+      val arrayProperty = new ArraySchema(schema)
       arrayProperty.setUniqueItems(true)
       arrayProperty
     }
   }
   
-  private def wrapContainer(container: String, property: Property, allowed: ContainerWrapper.Wrapper*): Property = {
+  private def wrapContainer(container: String, property: Schema[_], allowed: ContainerWrapper.Wrapper*): Schema[_] = {
     val wrappers =
       if(allowed.isEmpty){
         ContainerWrapper.ALL
@@ -844,6 +938,4 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
     }
     property
   }
-
-  private def toModel(property: Property): Model = propertyModelConverter.propertyToModel(property)
 }
