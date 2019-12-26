@@ -6,7 +6,7 @@ import io.swagger.models.{ Contact, Info, License, Scheme, Swagger }
 import org.apache.commons.lang3.StringUtils
 import com.typesafe.scalalogging._
 import play.modules.swagger.util.SwaggerContext
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import javax.inject.Inject
 
 /**
@@ -97,9 +97,7 @@ class PlayApiScanner @Inject() (playSwaggerConfig: PlaySwaggerConfig, route: Rou
     list.toSet.asJava
   }
 
-  override def getPrettyPrint(): Boolean = {
-    true;
-  }
+  override def getPrettyPrint(): Boolean = true
 
-  override def setPrettyPrint(x: Boolean) {}
+  override def setPrettyPrint(x: Boolean): Unit = {}
 }

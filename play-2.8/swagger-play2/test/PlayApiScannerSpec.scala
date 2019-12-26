@@ -5,7 +5,7 @@ import org.junit.runner.RunWith
 import org.specs2.mutable._
 import org.specs2.mock.Mockito
 import org.specs2.runner.JUnitRunner
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import play.modules.swagger.util.SwaggerContext
 import play.routes.compiler.{ Route => PlayRoute }
 
@@ -22,7 +22,7 @@ PUT /api/cat @testdata.CatController.add1
 GET /api/fly testdata.FlyController.list
 PUT /api/dog testdata.DogController.add1
 PUT /api/dog/:id testdata.DogController.add0(id:String)
-""", new File("")).right.get.collect {
+""", new File("")).getOrElse(List.empty).collect {
       case (route: PlayRoute) => {
         route
       }

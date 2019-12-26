@@ -4,7 +4,7 @@ import io.swagger.config._
 import io.swagger.models.Swagger
 
 import javax.inject.{ Inject, Singleton }
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import com.typesafe.scalalogging._
 
 @Singleton
@@ -25,9 +25,7 @@ class ApiListingCache @Inject() (reader: PlayReader) {
         case config: SwaggerConfig => {
           swagger = config.configure(swagger)
         }
-        case config => {
-          // no config, do nothing
-        }
+        case _ => // no config, do nothing
       }
       cache = Some(swagger)
       cache

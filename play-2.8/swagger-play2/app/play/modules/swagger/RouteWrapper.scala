@@ -2,13 +2,13 @@ package play.modules.swagger;
 
 import play.api.Application
 import play.api.routing.Router
-import play.routes.compiler.{ Include, Route, RoutesFileParser, StaticPart }
+import play.routes.compiler.{Include, Route, RoutesCompilationError, RoutesFileParser, Rule, StaticPart}
 import org.apache.commons.lang3.StringUtils
 
 import scala.io.Source
-
 import java.io.File
-import javax.inject.{ Inject, Provider, Singleton }
+
+import javax.inject.{Inject, Provider, Singleton}
 import com.typesafe.scalalogging._
 
 class RouteWrapper(val router: Map[String, Route]) {
@@ -74,7 +74,7 @@ class RouteProvider @Inject() (router: Router, app: Application) extends Provide
 
       val routesContent = Source.fromInputStream(resourceStream).mkString
       val parsedRoutes = RoutesFileParser.parseContent(routesContent, new File(routesFile))
-      val routes = parsedRoutes.right.get.collect {
+      val routes = parsedRoutes.getOrElse(List.empty).collect {
         case (route: Route) => {
           logger.debug(s"Adding route '$route'")
           Seq(route.copy(path = route.path.copy(parts = StaticPart(prefix) +: route.path.parts)))
