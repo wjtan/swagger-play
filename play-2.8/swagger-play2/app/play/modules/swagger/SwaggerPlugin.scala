@@ -24,7 +24,7 @@ import play.api.inject.ApplicationLifecycle
 import play.api.Application
 import play.api.routing.Router
 import scala.concurrent.Future
-import scala.collection.JavaConversions._
+import scala.jdk.CollectionConverters._
 import org.apache.commons.lang3.StringUtils
 import com.typesafe.scalalogging._
 

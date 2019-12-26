@@ -20,8 +20,8 @@ import org.apache.commons.lang3.StringUtils
 import com.typesafe.scalalogging._
 import play.modules.swagger.util.CrossUtil
 import play.routes.compiler._
-import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
+import scala.jdk.CollectionConverters._
 import scala.util.control.Breaks._
 
 import java.lang.annotation.Annotation
@@ -225,7 +225,7 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
       return operationPath.toString()
   }
 
-  private def readSwaggerConfig(config: SwaggerDefinition) {
+  private def readSwaggerConfig(config: SwaggerDefinition): Unit = {
       if (!isEmpty(config.basePath())) {
           swagger.setBasePath(config.basePath())
       }
@@ -289,7 +289,7 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
       }
   }
 
-  private def readInfoConfig(config: SwaggerDefinition) {
+  private def readInfoConfig(config: SwaggerDefinition): Unit = {
       val infoConfig = config.info()
       val info: io.swagger.models.Info = 
         if (swagger.getInfo() != null) {
@@ -355,7 +355,7 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
       info.getVendorExtensions().putAll(BaseReaderUtils.parseExtensions(infoConfig.extensions()))
   }
 
-  private def readImplicitParameters(method: Method, operation: Operation, cls: Class[_]) {
+  private def readImplicitParameters(method: Method, operation: Operation, cls: Class[_]): Unit = {
       val implicitParams = method.getAnnotation(classOf[ApiImplicitParams])
       if (implicitParams != null && implicitParams.value().length > 0) {
           for (param <- implicitParams.value()) {
@@ -738,7 +738,7 @@ class PlayReader @Inject() (swagger: Swagger, routes: RouteWrapper, config: Play
       return in
   }
   
-  private def appendModels(t: Type) {
+  private def appendModels(t: Type): Unit = {
       val models = modelConverters.readAll(t)
       for ((modelName, model) <- models.asScala) {
         swagger.model(modelName, model)
