@@ -1,7 +1,12 @@
 package testdata;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import io.swagger.annotations.*;
+import io.swagger.v3.oas.annotations.*;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.*;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.responses.*;
 import play.mvc.Controller;
 import play.mvc.Http;
 import play.mvc.Http.Request;
@@ -9,31 +14,36 @@ import play.mvc.Result;
 
 import java.util.List;
 
-@Api(value = "/apitest/search", tags = { "Search" })
+// @Api(value = "/apitest/search", tags = { "Search" })
 public class SettlementsSearcherController extends Controller {
     
-    @ApiOperation(value = "Search for settlement",
-                  notes = "Search for a settlement with personal number and property id.",
-                  httpMethod = "GET",
-                  nickname = "getsettlement",
-                  produces = "application/json",
-                  response = Settlement.class,
-                  responseContainer = "List")
+    @Operation(
+            description = "Search for settlement",
+            summary = "Search for a settlement with personal number and property id.",
+            method = "GET",
+            operationId = "getsettlement",
+            responses = {
+              @ApiResponse(content = @Content(
+                 array = @ArraySchema(schema = @Schema(implementation = Settlement.class)),
+                 mediaType = "application/json"
+               )
+            )
+          })
     @ApiResponses({
-                    @ApiResponse(code = Http.Status.BAD_REQUEST, message = "Bad Request"),
-                    @ApiResponse(code = Http.Status.UNAUTHORIZED, message = "Unauthorized"),
-                    @ApiResponse(code = Http.Status.INTERNAL_SERVER_ERROR, message = "Server error")
+                    @ApiResponse(responseCode = "" + Http.Status.BAD_REQUEST, description = "Bad Request"),
+                    @ApiResponse(responseCode = "" + Http.Status.UNAUTHORIZED, description = "Unauthorized"),
+                    @ApiResponse(responseCode = "" + Http.Status.INTERNAL_SERVER_ERROR, description = "Server error")
     })
-    @ApiImplicitParams({
-                         @ApiImplicitParam(value = "Token for logged in user",
+    @Parameters({
+                         @Parameter(description = "Token for logged in user",
                                            name = "Authorization",
                                            required = false,
-                                           dataType = "string",
-                                           paramType = "header"),
+                                           schema = @Schema(type = "string"),
+                                           in = ParameterIn.HEADER),
     })
     public Result search(Request req,
-                         @ApiParam(value = "A personal number of one of the sellers.", example = "0101201112345") String personalNumber,
-                         @ApiParam(value = "The cadastre or share id.", example = "1201-5-1-0-0", required = true) String propertyId) {
+                         @Parameter(description = "A personal number of one of the sellers.", example = "0101201112345") String personalNumber,
+                         @Parameter(description = "The cadastre or share id.", example = "1201-5-1-0-0", required = true) String propertyId) {
         return ok();
     }
     
@@ -52,16 +62,16 @@ public class SettlementsSearcherController extends Controller {
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
 class Settlement {
     
-    @ApiModelProperty(required = true)
+    @Schema(required = true)
     public String settlementId;
     
-    @ApiModelProperty(required = true)
+    @Schema(required = true)
     public List<String> sellers;
     
-    @ApiModelProperty
+    @Schema
     public List<String> buyers;
     
-    @ApiModelProperty
+    @Schema
     public Integer purchaseAmount;
     
 }

@@ -1,125 +1,158 @@
 package testdata
 
-import io.swagger.annotations._
+import io.swagger.v3.oas.annotations._
+import io.swagger.v3.oas.annotations.media._
+import io.swagger.v3.oas.annotations.parameters.RequestBody
+import io.swagger.v3.oas.annotations.responses._
+import io.swagger.v3.oas.annotations.security.SecurityRequirement
+
 import scala.concurrent.Future
 import play.api.mvc.InjectedController
 
 // todo - test for these
-@Api(value = "/apitest/dogs", description = "look after the dogs",
-  basePath = "xx",
-  position = 2,
-  produces = "application/json, application/xml",
-  consumes = "application/json, application/xml",
-  protocols = "http, https",
-  authorizations = Array(new Authorization(value = "oauth2",
-    scopes = Array(
-      new AuthorizationScope(scope = "vet", description = "vet access"),
-      new AuthorizationScope(scope = "owner", description = "owner access")
-    ))
-  )
-)
+//@Api(value = "/apitest/dogs", description = "look after the dogs",
+//  basePath = "xx",
+//  position = 2,
+//  produces = "application/json, application/xml",
+//  consumes = "application/json, application/xml",
+//  protocols = "http, https",
+//  authorizations = Array(new Authorization(value = "oauth2",
+//    scopes = Array(
+//      new AuthorizationScope(scope = "vet", description = "vet access"),
+//      new AuthorizationScope(scope = "owner", description = "owner access")
+//    ))
+//  )
+//)
 object DogController extends InjectedController {
 
-  @ApiOperation(value = "addDog0", response = classOf[String])
+  @Operation(
+    operationId = "addDog0",
+    responses = Array(
+      new ApiResponse(content = Array(
+        new Content(schema = new Schema(implementation = classOf[String]))
+      ))
+    ))
   def add0(id: String) = Action {
     request => Ok("test case")
   }
 
-  @ApiOperation(value = "addDog1",
-    httpMethod = "PUT",
-    response = classOf[String])
-  @ApiImplicitParams(Array(
-    new ApiImplicitParam(name = "dog", value = "Dog object to add", required = true, dataType = "testdata.Dog", paramType = "body")))
+  @Operation(
+    operationId = "addDog1",
+    method = "PUT",
+    responses = Array(
+      new ApiResponse(content = Array(
+        new Content(schema = new Schema(implementation = classOf[String]))
+      ))
+    ))
+  @RequestBody(description = "Dog object to add", required = true,
+    content = Array(new Content(schema = new Schema(`type`= "testdata.Dog"))))
   def add1 = Action {
     request => Ok("test case")
   }
 
-  @ApiOperation(value = "addDog2",
-    notes = "Adds a dogs better",
-    httpMethod = "PUT",
-    nickname = "addDog2_nickname",
-    authorizations = Array(new Authorization(value = "oauth2",
-      scopes = Array(
-        new AuthorizationScope(scope = "vet", description = "vet access"),
-        new AuthorizationScope(scope = "owner", description = "owner access")
-      ))
-    ),
-    consumes = " application/json ",
-    protocols = "http",
-    position = 2)
+  @Operation(
+    operationId = "addDog2",
+    description = "Adds a dogs better",
+    method = "PUT",
+    // nickname = "addDog2_nickname",
+    security = Array(new SecurityRequirement(
+      name = "oauth2",
+      scopes = Array("vet", "owner")
+    )),
+    //protocols = "http"
+  )
   @ApiResponses(Array())
-  @ApiImplicitParams(Array(
-    new ApiImplicitParam(name = "dog", value = "Dog object to add", required = true, dataType = "testdata.Dog", paramType = "body")))
+  @RequestBody(description = "Dog object to add", required = true,
+    content = Array(new Content(
+      schema = new Schema(`type`= "testdata.Dog"),
+      mediaType = "application/json"
+    ))
+  )
   def add2 = Action {
     request => Ok("test case")
   }
 
-  @ApiOperation(value = "Add a new Dog",
-    notes = "Adds a dogs nicely",
-    httpMethod = "PUT",
-    authorizations = Array(new Authorization(value = "oauth2",
-      scopes = Array(
-        new AuthorizationScope(scope = "vet", description = "vet access"),
-        new AuthorizationScope(scope = "owner", description = "owner access")
-      )),
-      new Authorization(value = "api_key")
+  @Operation(
+    description = "Add a new Dog",
+    summary = "Adds a dogs nicely",
+    method = "PUT",
+    security = Array(new SecurityRequirement(
+      name = "oauth2",
+      scopes = Array("vet", "owner")),
+      new SecurityRequirement(name = "api_key")
     ),
-    consumes = " application/json, text/yaml ",
-    protocols = "http, https"
+    //consumes = " application/json, text/yaml ",
+    //protocols = "http, https"
   )
   @ApiResponses(Array(
-    new ApiResponse(code = 405, message = "Invalid input"),
-    new ApiResponse(code = 666, message = "Big Problem")))
-  @ApiImplicitParams(Array(
-    new ApiImplicitParam(name = "dog", value = "Dog object to add", required = true, dataType = "testdata.Dog", paramType = "body")))
+    new ApiResponse(responseCode = "405", description = "Invalid input"),
+    new ApiResponse(responseCode = "666", description = "Big Problem")))
+  @RequestBody(description = "Dog object to add", required = true,
+    content = Array(
+      new Content(schema = new Schema(`type` = "testdata.Dog"), mediaType = "application/json"),
+      new Content(schema = new Schema(`type` = "testdata.Dog"), mediaType = "text/yaml")
+    ))
   def add3 = Action {
     request => Ok("test case")
   }
 
-  @ApiOperation(value = "Updates a new Dog",
-    notes = "Updates dogs nicely",
-    httpMethod = "POST")
-  @ApiResponses(Array(
-    new ApiResponse(code = 405, message = "Invalid input")))
-  @ApiImplicitParams(Array(
-    new ApiImplicitParam(name = "dog", value = "Dog object to update", required = true, dataType = "testdata.Dog", paramType = "body")))
+  @Operation(
+    description = "Updates a new Dog",
+    summary = "Updates dogs nicely",
+    method = "POST")
+  @ApiResponse(responseCode = "405", description = "Invalid input")
+  @RequestBody(description = "Dog object to update", required = true,
+    content = Array(new Content(schema = new Schema(`type` = "testdata.Dog"))))
   def update = Action {
     request => Ok("test case")
   }
 
-  @ApiOperation(value = "Get Dog by Id",
-    notes = "Returns a dog",
-    response = classOf[Dog],
-    httpMethod = "GET",
-    produces = "")
+  @Operation(
+    description = "Get Dog by Id",
+    summary = "Returns a dog",
+    responses = Array(
+      new ApiResponse(content = Array(
+        new Content(schema = new Schema(implementation = classOf[Dog]))
+      ))
+    ),
+    method = "GET")
   @ApiResponses(Array(
-    new ApiResponse(code = 405, message = "Invalid input"),
-    new ApiResponse(code = 404, message = "Dog not found")))
-  def get1(@ApiParam(value = "ID of dog to fetch", required = true) id: Long) = Action {
+    new ApiResponse(responseCode = "405", description = "Invalid input"),
+    new ApiResponse(responseCode = "404", description = "Dog not found")))
+  def get1(@Parameter(description = "ID of dog to fetch", required = true) id: Long) = Action {
     request => Ok("test case")
   }
 
-  @ApiOperation(value = "Get Dog by Id",
-    notes = "Returns a dog",
-    response = classOf[Dog],
-    httpMethod = "GET",
-    produces = "application/json")
+  @Operation(
+    description = "Get Dog by Id",
+    summary = "Returns a dog",
+    responses = Array(
+      new ApiResponse(content = Array(
+        new Content(schema = new Schema(implementation = classOf[Dog]), mediaType = "application/json")
+      ))
+    ),
+    method = "GET")
   @ApiResponses(Array(
-    new ApiResponse(code = 405, message = "Invalid input"),
-    new ApiResponse(code = 404, message = "Dog not found")))
-  def get2(@ApiParam(value = "ID of dog to fetch", required = true) id: Long) = Action {
+    new ApiResponse(responseCode = "405", description = "Invalid input"),
+    new ApiResponse(responseCode = "404", description = "Dog not found")))
+  def get2(@Parameter(description = "ID of dog to fetch", required = true) id: Long) = Action {
     request => Ok("test case")
   }
 
-  @ApiOperation(value = "Get Dog by Id",
-    notes = "Returns a dog",
-    response = classOf[Dog],
-    httpMethod = "GET",
-    produces = "application/json, application/xml")
+  @Operation(
+    description = "Get Dog by Id",
+    summary = "Returns a dog",
+    responses = Array(
+      new ApiResponse(content = Array(
+        new Content(schema = new Schema(implementation = classOf[Dog]), mediaType = "application/json")
+      ))
+    ),
+    method = "GET")
+    //produces = "application/json, application/xml")
   @ApiResponses(Array(
-    new ApiResponse(code = 405, message = "Invalid input"),
-    new ApiResponse(code = 404, message = "Dog not found")))
-  def get3(@ApiParam(value = "ID of dog to fetch", required = true) id: Long) = Action {
+    new ApiResponse(responseCode = "405", description = "Invalid input"),
+    new ApiResponse(responseCode = "404", description = "Dog not found")))
+  def get3(@Parameter(description = "ID of dog to fetch", required = true) id: Long) = Action {
     request => Ok("test case")
   }
 
@@ -130,35 +163,39 @@ object DogController extends InjectedController {
   @Path("/{petId}")
   */
 
-  @ApiOperation(value = "List Dogs",
-    nickname = "listDogs",
-    notes = "Returns all dogs",
-    response = classOf[Dog],
-    responseContainer = "List",
-    httpMethod = "GET")
+  @Operation(
+    description = "List Dogs",
+    operationId = "listDogs",
+    summary = "Returns all dogs",
+    responses = Array(
+      new ApiResponse(content = Array(
+        new Content(array = new ArraySchema(schema = new Schema(implementation = classOf[Dog])))
+      ))
+    ),
+    method = "GET")
   @Deprecated
   def list = Action {
     request => Ok("test case")
   }
 
-  @ApiOperation(value = "Method with numeric chars in name",
-    notes = "get a Dog with id 33",
-    httpMethod = "GET")
+  @Operation(description = "Method with numeric chars in name",
+    summary = "get a Dog with id 33",
+    method = "GET")
   @ApiResponses(Array(
-    new ApiResponse(code = 404, message = "Dog not found")))
+    new ApiResponse(responseCode = "404", description = "Dog not found")))
   def get33 = Action {
     request => Ok("test case")
   }
 
   // use the Jax.ws annotations
   // Delete a Dog
-  @ApiOperation(value = "Delete", notes = "Deletes a user", httpMethod = "DELETE")
+  @Operation(operationId = "Delete", summary = "Deletes a user", method = "DELETE")
   def delete(
-    @ApiParam(name = "dogId", value = "dogId") userId: String) = Action.async {
+    @Parameter(name = "dogId", description = "dogId") userId: String) = Action.async {
     implicit request => Future.successful(Ok)
   }
 
-  @ApiOperation(value = "valueStr", notes = "notesStr", httpMethod = "GET")
+  @Operation(operationId = "valueStr", summary = "notesStr", method = "GET")
   @Deprecated
   def deprecated = Action {
     request => Ok("test case")
@@ -172,13 +209,12 @@ object DogController extends InjectedController {
     request => Ok("test case")
   }
 
-  @ApiOperation(value = "unknown method name",
-    httpMethod = "UNKNOWN")
+  @Operation(description = "unknown method name", method = "UNKNOWN")
   def unknown_method() = Action {
     request => Ok("test case")
   }
 
-  @ApiOperation(value = "undefined method name")
+  @Operation(description = "undefined method name")
   def undefined_method() = Action {
     request => Ok("test case")
   }

@@ -3,6 +3,7 @@ import java.io.File
 import io.swagger.v3.core.util.Json
 import io.swagger.v3.oas.models.{OpenAPI, PathItem}
 import io.swagger.v3.oas.models.PathItem.HttpMethod
+import io.swagger.v3.oas.models.media.{ArraySchema, Schema}
 import io.swagger.v3.oas.models.parameters._
 import play.modules.swagger._
 import play.routes.compiler.{Route => PlayRoute}
@@ -132,7 +133,7 @@ PUT /api/dog/:id testdata.DogController.add0(id:String)
       opCatPut.getOperationId must beEqualTo("add1")
       opCatPut.getParameters.asScala.head.getName must beEqualTo("cat")
       opCatPut.getParameters.asScala.head.getIn must beEqualTo("body")
-      opCatPut.getParameters.asScala.head.asInstanceOf[BodyParameter].getSchema.getReference must beEqualTo("#/definitions/Cat")
+      opCatPut.getRequestBody.getContent.asScala.toList.head._2.getSchema.get$ref must beEqualTo("#/definitions/Cat")
       //opCatPut.getResponses.get("200").getResponseSchema.asInstanceOf[ModelImpl].getType must beEqualTo("string")
 
       val pathCat43 = api.get.getPaths.get("/cat43")
@@ -140,15 +141,15 @@ PUT /api/dog/:id testdata.DogController.add0(id:String)
 
       val opCatGet43 = pathCat43.readOperationsMap.get(HttpMethod.GET)
       opCatGet43.getOperationId must beEqualTo("test issue #43_nick")
-      opCatGet43.getResponses.get("200").getResponseSchema.asInstanceOf[ArrayModel].getItems.asInstanceOf[RefProperty].getSimpleRef must beEqualTo("Cat")
+      opCatGet43.getResponses.get("200").getContent.asScala.toList.head._2.getSchema.asInstanceOf[ArraySchema].getItems.get$ref() must beEqualTo("Cat")
 
       opCatGet43.getParameters.asScala.head.getName must beEqualTo("test_issue_43_param")
       opCatGet43.getParameters.asScala.head.getIn must beEqualTo("query")
-      opCatGet43.getParameters.asScala.head.asInstanceOf[QueryParameter].getType must beEqualTo("integer")
+      opCatGet43.getParameters.asScala.head.asInstanceOf[QueryParameter].getSchema.getType must beEqualTo("integer")
 
       opCatGet43.getParameters.get(1).getName must beEqualTo("test_issue_43_implicit_param")
       opCatGet43.getParameters.get(1).getIn must beEqualTo("query")
-      opCatGet43.getParameters.get(1).asInstanceOf[QueryParameter].getType must beEqualTo("integer")
+      opCatGet43.getParameters.get(1).asInstanceOf[QueryParameter].getSchema.getType must beEqualTo("integer")
 
       val pathDog = api.get.getPaths.get("/dog")
       pathDog.readOperations.size must beEqualTo(2)
@@ -157,16 +158,16 @@ PUT /api/dog/:id testdata.DogController.add0(id:String)
       opDogGet.getOperationId must beEqualTo("listDogs")
       opDogGet.getParameters.asScala must beEmpty
       //opDogGet.getConsumes.asScala.toList must beEqualTo(List("application/json", "application/xml"))
-      opDogGet.getResponses.get("200").getResponseSchema.asInstanceOf[ArrayModel].getItems.asInstanceOf[RefProperty].getSimpleRef must beEqualTo("Dog")
+      opDogGet.getResponses.get("200").getContent.asScala.toList.head._2.getSchema.asInstanceOf[ArraySchema].getItems.get$ref() must beEqualTo("Dog")
       //opDogGet.getProduces.asScala.toList must beEqualTo(List("application/json", "application/xml"))
 
       val opDogPut = pathDog.readOperationsMap.get(HttpMethod.PUT)
       opDogPut.getOperationId must beEqualTo("add1")
       opDogPut.getParameters.asScala.head.getName must beEqualTo("dog")
       opDogPut.getParameters.asScala.head.getIn must beEqualTo("body")
-      opDogPut.getParameters.asScala.head.asInstanceOf[BodyParameter].getSchema.getReference must beEqualTo("#/definitions/Dog")
+      opDogPut.getRequestBody.getContent.asScala.toList.head._2.getSchema.get$ref must beEqualTo("#/definitions/Dog")
       //opDogPut.getConsumes.asScala.toList must beEqualTo(List("application/json", "application/xml"))
-      //opDogPut.getResponses.get("200").getResponseSchema.asInstanceOf[ModelImpl].getType must beEqualTo("string")
+      opDogPut.getResponses.get("200").getContent.asScala.toList.head._2.getSchema.getType must beEqualTo("string")
       //opDogPut.getProduces.asScala.toList must beEqualTo(List("application/json", "application/xml"))
 
       val pathDogParam = api.get.getPaths.get("/dog/{id}")
@@ -176,10 +177,10 @@ PUT /api/dog/:id testdata.DogController.add0(id:String)
       opDogParamPut.getOperationId must beEqualTo("add0")
       opDogParamPut.getParameters.asScala.head.getName must beEqualTo("id")
       opDogParamPut.getParameters.asScala.head.getIn must beEqualTo("path")
-      opDogParamPut.getParameters.asScala.head.asInstanceOf[PathParameter].getType must beEqualTo("string")
+      opDogParamPut.getParameters.asScala.head.asInstanceOf[PathParameter].getSchema.getType must beEqualTo("string")
       //opDogParamPut.getConsumes.asScala.toList must beEqualTo(List("application/json", "application/xml"))
       //opDogParamPut.getProduces.asScala.toList must beEqualTo(List("application/json", "application/xml"))
-      opDogParamPut.getResponses.get("200").getContent.getResponseSchema.asInstanceOf[ModelImpl].getType must beEqualTo("string")
+      opDogParamPut.getResponses.get("200").getContent.asScala.toList.head._2.getSchema.getType must beEqualTo("string")
 
       val catDef = api.get.getComponents.getSchemas.get("Cat")
       catDef.getType must beEqualTo("object")

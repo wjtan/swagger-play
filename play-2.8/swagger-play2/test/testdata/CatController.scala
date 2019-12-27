@@ -3,8 +3,8 @@ package testdata
 import io.swagger.v3.oas.annotations._
 import io.swagger.v3.oas.annotations.enums.ParameterIn
 import io.swagger.v3.oas.annotations.media._
+import io.swagger.v3.oas.annotations.parameters.RequestBody
 import io.swagger.v3.oas.annotations.responses._
-import io.swagger.v3.oas.annotations.responses.ApiResponse
 import play.api.mvc.InjectedController
 
 // @Api(value = "/apitest/cats", description = "play with cats")
@@ -19,7 +19,7 @@ class CatController extends InjectedController {
       ))
     )
   )
-  @Parameter(name = "cat", description = "Cat object to add", required = true, new Schema(`type` = "testdata.Cat"), in = ParameterIn.DEFAULT)
+  @RequestBody(description = "Cat object to add", required = true, new Schema(`type` = "testdata.Cat"))
   def add1 = Action {
     request => Ok("test case")
   }
@@ -29,7 +29,7 @@ class CatController extends InjectedController {
     summary = "Updates cats nicely",
     method = "POST")
   @ApiResponse(responseCode = "405", description = "Invalid input")
-  @Parameter(name = "cat", description = "Cat object to update", required = true, new Schema(`type` = "testdata.Cat"), in = ParameterIn.DEFAULT)
+  @RequestBody(description = "Cat object to update", required = true, new Schema(`type` = "testdata.Cat"))
   def update = Action {
     request => Ok("test case")
   }

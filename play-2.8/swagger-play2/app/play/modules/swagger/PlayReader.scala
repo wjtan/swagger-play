@@ -595,6 +595,11 @@ class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig)
       operation.setDeprecated(true)
     }
 
+    val bodyAnnotation = ReflectionUtils.getAnnotation(method, classOf[io.swagger.v3.oas.annotations.parameters.RequestBody])
+    if (bodyAnnotation != null) {
+      operation.setRequestBody(parseRequestBody(bodyAnnotation))
+    }
+
     val parametersAnnotation = ReflectionUtils.getAnnotation(method, classOf[io.swagger.v3.oas.annotations.Parameters])
     if (parametersAnnotation != null) {
       for(parameterAnnotation <- parametersAnnotation.value){
