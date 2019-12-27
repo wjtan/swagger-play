@@ -1,53 +1,67 @@
 package testdata
 
-import io.swagger.annotations._
-
+import io.swagger.v3.oas.annotations._
+import io.swagger.v3.oas.annotations.enums.ParameterIn
+import io.swagger.v3.oas.annotations.media._
+import io.swagger.v3.oas.annotations.responses._
+import io.swagger.v3.oas.annotations.responses.ApiResponse
 import play.api.mvc.InjectedController
 
-@Api(value = "/apitest/cats", description = "play with cats")
+// @Api(value = "/apitest/cats", description = "play with cats")
 class CatController extends InjectedController {
 
-  @ApiOperation(value = "addCat1",
-    httpMethod = "PUT",
-    authorizations = Array(),
-    consumes = "",
-    protocols = "",
-    response = classOf[String])
-  @ApiImplicitParams(Array(
-    new ApiImplicitParam(name = "cat", value = "Cat object to add", required = true, dataType = "testdata.Cat", paramType = "body")))
+  @Operation(
+    operationId = "addCat1",
+    method = "PUT",
+    responses = Array(
+      new ApiResponse(content = Array(
+        new Content(schema = new Schema(implementation = classOf[String]))
+      ))
+    )
+  )
+  @Parameter(name = "cat", description = "Cat object to add", required = true, new Schema(`type` = "testdata.Cat"), in = ParameterIn.DEFAULT)
   def add1 = Action {
     request => Ok("test case")
   }
 
-  @ApiOperation(value = "Updates a new Cat",
-    notes = "Updates cats nicely",
-    httpMethod = "POST")
-  @ApiResponses(Array(
-    new ApiResponse(code = 405, message = "Invalid input")))
-  @ApiImplicitParams(Array(
-    new ApiImplicitParam(name = "cat", value = "Cat object to update", required = true, dataType = "testdata.Cat", paramType = "body")))
+  @Operation(
+    description = "Updates a new Cat",
+    summary = "Updates cats nicely",
+    method = "POST")
+  @ApiResponse(responseCode = "405", description = "Invalid input")
+  @Parameter(name = "cat", description = "Cat object to update", required = true, new Schema(`type` = "testdata.Cat"), in = ParameterIn.DEFAULT)
   def update = Action {
     request => Ok("test case")
   }
 
-  @ApiOperation(value = "Get Cat by Id",
-    notes = "Returns a cat",
-    response = classOf[Cat],
-    httpMethod = "GET",
-    produces = "")
+  @Operation(
+    description = "Get Cat by Id",
+    summary = "Returns a cat",
+    responses = Array(
+      new ApiResponse(content = Array(
+        new Content(schema = new Schema(implementation = classOf[Cat]))
+      ))
+    ),
+    method = "GET")
   @ApiResponses(Array(
-    new ApiResponse(code = 405, message = "Invalid input"),
-    new ApiResponse(code = 404, message = "Cat not found")))
-  def get1(@ApiParam(value = "ID of cat to fetch", required = true) id: Long) = Action {
+    new ApiResponse(responseCode = "405", description = "Invalid input"),
+    new ApiResponse(responseCode = "404", description = "Cat not found")))
+  def get1(@Parameter(name = "ID of cat to fetch", required = true) id: Long) = Action {
     request => Ok("test case")
   }
 
-  @ApiOperation(value = "List Cats",
-    nickname = "listCats",
-    notes = "Returns all cats",
-    response = classOf[Cat],
-    responseContainer = "List",
-    httpMethod = "GET")
+  @Operation(
+    description = "List Cats",
+    operationId = "listCats",
+    summary = "Returns all cats",
+    responses = Array(
+      new ApiResponse(content = Array(
+        new Content(array =
+          new ArraySchema(schema = new Schema(implementation = classOf[Cat]))
+        )
+      ))
+    ),
+    method = "GET")
   @Deprecated
   def list = Action {
     request => Ok("test case")
@@ -57,14 +71,24 @@ class CatController extends InjectedController {
     request => Ok("test case")
   }
 
-  @ApiOperation(value = "test issue #43",
-    nickname = "test issue #43_nick",
-    notes = "test issue #43_notes",
-    response = classOf[testdata.Cat],
-    responseContainer = "List",
-    httpMethod = "GET")
-  @ApiImplicitParams(Array(
-    new ApiImplicitParam(name = "test_issue_43_implicit_param", dataType = "Option[Int]", value = "test issue #43 implicit param", paramType = "query")))
+  @Operation(
+    description = "test issue #43",
+    operationId = "test issue #43_nick",
+    summary = "test issue #43_notes",
+    responses = Array(
+      new ApiResponse(content = Array(
+        new Content(array =
+          new ArraySchema(schema = new Schema(implementation = classOf[Cat]))
+        )
+      ))
+    ),
+    method = "GET")
+  @Parameters(Array(
+    new Parameter(
+      name = "test_issue_43_implicit_param",
+      schema = new Schema(`type`= "Option[Int]"),
+      description = "test issue #43 implicit param",
+      in = ParameterIn.QUERY)))
   def testIssue43(test_issue_43_param: Option[Int]) = Action {
     request => Ok("test issue #43")
   }

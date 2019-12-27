@@ -4,7 +4,7 @@ import io.swagger.annotations._
 import play.mvc.{ Result, Http }
 import play.api.mvc.InjectedController
 
-@Api(value = "/apitest/pointsofinterest", description = "Points of interest")
+// @Api(value = "/apitest/pointsofinterest", description = "Points of interest")
 class PointOfInterestController extends InjectedController {
 
   @ApiOperation(value = "Get points of interest",

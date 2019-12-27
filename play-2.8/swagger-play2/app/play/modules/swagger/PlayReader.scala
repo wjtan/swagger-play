@@ -4,6 +4,7 @@ package play.modules.swagger
 
 import io.swagger.v3.oas.annotations.{Operation => ApiOperation}
 import io.swagger.v3.core.converter.ModelConverters
+import io.swagger.v3.core.util.AnnotationsUtils
 import io.swagger.v3.oas.models._
 import io.swagger.v3.oas.models.examples.Example
 import io.swagger.v3.oas.models.headers._
@@ -16,7 +17,7 @@ import io.swagger.v3.oas.models.parameters.{Parameter => ApiParameter}
 import io.swagger.v3.oas.models.responses._
 import io.swagger.v3.oas.models.security._
 import io.swagger.v3.oas.models.servers._
-import javax.inject.{Provider, Singleton}
+import javax.inject.Singleton
 //import io.swagger.v3.core.util.BaseReaderUtils
 import io.swagger.v3.core.util.Json
 import io.swagger.v3.core.util.ParameterProcessor
@@ -525,7 +526,7 @@ class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig)
     null
   }
 
-  private def parseMethod(cls: Class[_], method: Method, route: Route, apiOperation: io.swagger.v3.oas.annotations.Operation): Operation = {
+  private def parseMethod(cls: Class[_], method: Method, route: Route, annotation: io.swagger.v3.oas.annotations.Operation): Operation = {
     val hidden = ReflectionUtils.getAnnotation(method, classOf[io.swagger.v3.oas.annotations.Hidden])
     if (hidden != null) {
       return null
@@ -536,61 +537,81 @@ class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig)
     operation.setResponses(responses)
     operation.setOperationId(method.getName)
 
-    if (apiOperation != null) {
-      if (apiOperation.hidden()) {
+    if (annotation != null) {
+      if (annotation.hidden()) {
         return null
       }
 
-      if (!isEmpty(apiOperation.operationId)) {
-        operation.setOperationId(apiOperation.operationId)
+      if (!isEmpty(annotation.operationId)) {
+        operation.setOperationId(annotation.operationId)
       }
 
       operation
-        .summary(apiOperation.summary)
-        .tags(apiOperation.tags.toList.asJava)
-        .description(apiOperation.description)
-        .externalDocs(parseExternalDocumentation(apiOperation.externalDocs))
-        .deprecated(apiOperation.deprecated)
-        .requestBody(parseRequestBody(apiOperation.requestBody))
-        .security(parseSecurities(apiOperation.security).asJava)
-        .extensions(parseExtensions(apiOperation.extensions).asJava)
+        .summary(annotation.summary)
+        .tags(annotation.tags.toList.asJava)
+        .description(annotation.description)
+        .externalDocs(parseExternalDocumentation(annotation.externalDocs))
+        .deprecated(annotation.deprecated)
+        .requestBody(parseRequestBody(annotation.requestBody))
+        .security(parseSecurities(annotation.security).asJava)
+        .extensions(parseExtensions(annotation.extensions).asJava)
 
-      val parameters = parseParameters(apiOperation.parameters)
+      // Read parameters from annotation
+      val parameters = parseParameters(annotation.parameters)
       parameters.foreach(operation.addParametersItem)
     }
 
-    if (apiOperation == null || apiOperation.responses.isEmpty) {
+    if (annotation == null || annotation.responses.isEmpty) {
       // pick out response from method declaration
       val responseType = method.getGenericReturnType
 
       if (!isResult(responseType) && isValidResponse(responseType)) {
-        val resolvedSchema = modelConverters.readAllAsResolvedSchema(responseType)
-        if (resolvedSchema != null) {
-          val mediaType = new MediaType().schema(resolvedSchema.schema)
+        val schema = createSchema(responseType)
+        if (schema != null) {
+          val mediaType = new MediaType().schema(schema)
           val content = new Content().addMediaType(MEDIA_TYPE, mediaType)
           val response = new ApiResponse()
           response
             .description(SUCCESSFUL_OPERATION)
             .content(content)
           responses.setDefault(response)
-
-          appendModels(responseType)
         }
       }
     }
 
-    val responseAnnotations = ReflectionUtils.getRepeatableAnnotations(method, classOf[io.swagger.v3.oas.annotations.responses.ApiResponse])
+    // ApiResponses
+    val responseAnnotations = ReflectionUtils.getAnnotation(method, classOf[io.swagger.v3.oas.annotations.responses.ApiResponses])
     if (responseAnnotations != null) {
-      responses.putAll(parseResponses(responseAnnotations.asScala.toList))
+      responses.putAll(parseResponses(responseAnnotations))
+    }
+
+    // List of ApiResponse
+    val responseList = ReflectionUtils.getRepeatableAnnotations(method, classOf[io.swagger.v3.oas.annotations.responses.ApiResponse])
+    if (responseList != null) {
+      responses.putAll(parseResponses(responseList.asScala.toList))
     }
 
     if (ReflectionUtils.getAnnotation(method, classOf[Deprecated]) != null) {
       operation.setDeprecated(true)
     }
 
+    val parametersAnnotation = ReflectionUtils.getAnnotation(method, classOf[io.swagger.v3.oas.annotations.Parameters])
+    if (parametersAnnotation != null) {
+      for(parameterAnnotation <- parametersAnnotation.value){
+        operation.addParametersItem(parseParameter(parameterAnnotation))
+      }
+    }
+
+    val parametersList = ReflectionUtils.getRepeatableAnnotations(method, classOf[io.swagger.v3.oas.annotations.Parameter])
+    if (parametersList != null) {
+      for(parameterAnnotation <- parametersList.asScala) {
+        operation.addParametersItem(parseParameter(parameterAnnotation))
+      }
+    }
+
     // Pick parameter from route
-    val parameters = getParameters(cls, method, route)
-    parameters.foreach(operation.addParametersItem)
+    val routeParameters = getParameters(cls, method, route)
+    routeParameters.foreach(operation.addParametersItem)
 
     if (responses.isEmpty) {
       val response = new ApiResponse()
@@ -610,6 +631,12 @@ class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig)
       case _ =>
     }
 
+    if (AnnotationsUtils.hasSchemaAnnotation(annotation.array.schema)) {
+      obj.setSchema(parseArraySchema(annotation.array))
+    } else {
+      obj.schema(parseSchema(annotation.schema))
+    }
+
     obj
       .name(annotation.name)
       .in(annotation.in.toString)
@@ -619,7 +646,6 @@ class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig)
       .allowEmptyValue(annotation.allowEmptyValue)
       .allowReserved(annotation.allowReserved)
       .style(ApiParameter.StyleEnum.valueOf(annotation.style.toString))
-      .schema(parseSchema(annotation.schema))
       .examples(parseExamples(annotation.examples).asJava)
       .content(parseContents(annotation.content))
       .extensions(parseExtensions(annotation.extensions).asJava)
@@ -685,7 +711,6 @@ class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig)
       .$ref(annotation.ref)
   }
 
-  // FIXME Parse array schema
   private def parseContents(annotations: Array[io.swagger.v3.oas.annotations.media.Content]): Content = {
     val obj = new Content()
     for (annotation <- annotations) {
@@ -696,10 +721,16 @@ class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig)
 
   private def parseMediaType(annotation: io.swagger.v3.oas.annotations.media.Content): MediaType = {
     val obj = new MediaType()
+
+    if (AnnotationsUtils.hasSchemaAnnotation(annotation.array.schema)) {
+      obj.setSchema(parseArraySchema(annotation.array))
+    } else {
+      obj.schema(parseSchema(annotation.schema))
+    }
+
     obj
       .examples(parseExamples(annotation.examples).asJava)
       .encoding(parseEncodings(annotation.encoding).asJava)
-      .schema(parseSchema(annotation.schema))
       .extensions(parseExtensions(annotation.extensions).asJava)
   }
 
@@ -753,7 +784,69 @@ class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig)
     annotations.map(annotation => (annotation.name, parseEncoding(annotation))).toMap
 
   private def parseSchema(annotation: io.swagger.v3.oas.annotations.media.Schema): Schema[_] = {
-    ???
+    val schema =
+      if (isVoid(annotation.implementation)) {
+        new Schema
+      } else {
+        createSchema(annotation.implementation)
+      }
+
+    import java.math.BigDecimal
+    import io.swagger.v3.oas.annotations.media.Schema.AccessMode
+    annotation.accessMode match {
+      case AccessMode.READ_ONLY => schema.setReadOnly(true)
+      case AccessMode.WRITE_ONLY => schema.setWriteOnly(true)
+      case AccessMode.READ_WRITE | AccessMode.AUTO  => {
+        schema.setReadOnly(true)
+        schema.setWriteOnly(true)
+      }
+    }
+
+    // FIXME Enum
+
+    schema
+      .name(annotation.name)
+      .title(annotation.title)
+      .description(annotation.description)
+      .multipleOf(new BigDecimal(annotation.multipleOf()))
+      .maximum(new BigDecimal(annotation.maximum))
+      .exclusiveMaximum(annotation.exclusiveMaximum)
+      .minimum(new BigDecimal(annotation.minimum))
+      .exclusiveMinimum(annotation.exclusiveMinimum)
+      .maxLength(annotation.maxLength)
+      .minLength(annotation.minLength)
+      .pattern(annotation.pattern)
+      .minProperties(annotation.minProperties)
+      .required(annotation.requiredProperties.toList.asJava)
+      .format(annotation.format)
+      .nullable(annotation.nullable)
+      .deprecated(annotation.deprecated)
+      .`type`(annotation.`type`)
+      .externalDocs(parseExternalDocumentation(annotation.externalDocs))
+      .extensions(parseExtensions(annotation.extensions).asJava)
+      .$ref(annotation.ref)
+
+    api.schema(schema.getName, schema)
+    schema
+  }
+
+  private def parseArraySchema(annotation: io.swagger.v3.oas.annotations.media.ArraySchema): ArraySchema = {
+    val obj = new ArraySchema()
+    if (AnnotationsUtils.hasSchemaAnnotation(annotation.schema)){
+      obj.items(parseSchema(annotation.schema))
+    }
+
+    if (AnnotationsUtils.hasSchemaAnnotation(annotation.arraySchema) &&
+      annotation.arraySchema.isInstanceOf[io.swagger.v3.oas.annotations.media.ArraySchema]){
+      val arraySchema = annotation.arraySchema.asInstanceOf[io.swagger.v3.oas.annotations.media.ArraySchema]
+      obj.items(parseArraySchema(arraySchema))
+    }
+
+    obj
+      .minItems(annotation.minItems)
+      .maxItems(annotation.maxItems)
+      .uniqueItems(annotation.uniqueItems())
+    obj
   }
 
   private val primitiveTypes: Map[String, Class[_]] = Map(
@@ -777,8 +870,8 @@ class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig)
     val matcher = pattern.matcher(simpleTypeName)
     if (matcher.find()) {
       val enhancedType = matcher.group(2)
-      val parameterType = primitiveTypes(enhancedType)
-      typeFactory.constructType(parameterType)
+      val parameterType = PrimitiveType.fromName(enhancedType)
+      typeFactory.constructType(parameterType.getKeyClass)
     } else {
       null
     }
@@ -940,12 +1033,19 @@ class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig)
   }*/
 
   private def createSchema(t: Type): Schema[_] = {
-    val schema = modelConverters.readAllAsResolvedSchema(t)
-    if (schema != null) {
-      enforcePrimitive(schema.schema, 0)
-    } else {
-      null
+    val resolvedSchema = modelConverters.readAllAsResolvedSchema(t)
+    if (resolvedSchema == null) {
+      return null
     }
+
+    //enforcePrimitive(schema.schema, 0)
+    val schema = resolvedSchema.schema
+    api.schema(schema.getName, schema)
+
+    //for ((modelName, model) <- resolvedSchema.referencedSchemas.asScala) {
+    //   api.schema(modelName, model)
+    //}
+    schema
   }
 
   private def enforcePrimitive(in: Schema[_], level: Int): Schema[_] = {
@@ -964,12 +1064,12 @@ class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig)
     in
   }
 
-  private def appendModels(t: Type): Unit = {
-    val models = modelConverters.readAll(t)
-    for ((modelName, model) <- models.asScala) {
-      api.schema(modelName, model)
-    }
-  }
+//  private def appendModels(t: Type): Unit = {
+//    val models = modelConverters.readAll(t)
+//    for ((modelName, model) <- models.asScala) {
+//      api.schema(modelName, model)
+//    }
+//  }
 
   //  private def parseResponseHeaders(headers: Array[io.swagger.v3.oas.annotations.headers.Header]): Map[String, Schema[_]] = {
   //      val responseHeaders = scala.collection.mutable.Map.empty[String, Schema[_]]
