@@ -1,7 +1,6 @@
+import io.swagger.v3.core.converter.ModelConverters
+
 import testdata._
-
-import io.swagger.converter._
-
 import org.specs2.mutable._
 import org.specs2.mock.Mockito
 

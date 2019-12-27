@@ -1,17 +1,17 @@
 package play.modules.swagger
 
 import controllers.ApiHelpController
-import play.api.inject.{ Binding, Module }
-import play.api.{ Configuration, Environment }
-import io.swagger.models.Swagger
+import play.api.inject.{Binding, Module}
+import play.api.{Configuration, Environment}
+import io.swagger.v3.oas.models.OpenAPI
 
 class SwaggerModule extends Module {
 
   override def bindings(environment: Environment, configuration: Configuration): Seq[Binding[_]] = Seq(
-    bind[Swagger].to(new Swagger()),
+    //bind[OpenAPI].to(new OpenAPI()),
     bind[RouteWrapper].toProvider[RouteProvider],
     bind[PlaySwaggerConfig].toProvider[PlaySwaggerConfigProvider],
-    bind[PlayReader].toSelf,
+    bind[PlayReaderProvider].toSelf,
     bind[PlayApiScanner].toSelf,
     bind[ApiListingCache].toSelf,
 

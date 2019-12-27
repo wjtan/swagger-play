@@ -16,6 +16,7 @@ import io.swagger.v3.oas.models.parameters.{Parameter => ApiParameter}
 import io.swagger.v3.oas.models.responses._
 import io.swagger.v3.oas.models.security._
 import io.swagger.v3.oas.models.servers._
+import javax.inject.{Provider, Singleton}
 //import io.swagger.v3.core.util.BaseReaderUtils
 import io.swagger.v3.core.util.Json
 import io.swagger.v3.core.util.ParameterProcessor
@@ -35,8 +36,12 @@ import java.util.regex.Pattern
 
 import javax.inject.Inject
 
+@Singleton
+class PlayReaderProvider @Inject() (routes: RouteWrapper, config: PlaySwaggerConfig) {
+  def get(api: OpenAPI): PlayReader = new  PlayReader(api, routes, config)
+}
 
-class PlayReader @Inject()(api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig) {
+class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig) {
   private[this] val logger = Logger[PlayReader]
 
   private[this] val typeFactory = Json.mapper.getTypeFactory
@@ -47,7 +52,7 @@ class PlayReader @Inject()(api: OpenAPI, routes: RouteWrapper, config: PlaySwagg
 
   import StringUtils._
 
-  def read(classes: Set[Class[_]]): Unit = {
+  def read(classes: List[Class[_]]): Unit = {
     // process SwaggerDefinitions first - so we get tags in desired order
     for (cls <- classes) {
       val definition = ReflectionUtils.getAnnotation(cls, classOf[io.swagger.v3.oas.annotations.OpenAPIDefinition])
@@ -111,11 +116,11 @@ class PlayReader @Inject()(api: OpenAPI, routes: RouteWrapper, config: PlaySwagg
     // parse the method
     val methods = cls.getMethods
     for (method <- methods) {
-      readMethod(cls, method)
+      readMethod(cls, method, api: OpenAPI)
     }
   }
 
-  private def readMethod(cls: Class[_], method: Method): Unit = {
+  private def readMethod(cls: Class[_], method: Method, api: OpenAPI): Unit = {
     if (ReflectionUtils.isOverriddenMethod(method, cls)) return
 
     // complete name as stored in route
@@ -136,15 +141,15 @@ class PlayReader @Inject()(api: OpenAPI, routes: RouteWrapper, config: PlaySwagg
     val operation = parseMethod(cls, method, route, apiOperation)
 
     val path: PathItem =
-      if (api.getPaths().containsKey(operationPath)) {
-        api.getPaths().get(operationPath)
+      if (api.getPaths.containsKey(operationPath)) {
+        api.getPaths.get(operationPath)
       } else {
         val path = new PathItem()
         api.path(operationPath, path)
         path
       }
 
-    path.operation(null, operation)
+    path.operation(httpMethod, operation)
   }
 
 
@@ -299,7 +304,7 @@ class PlayReader @Inject()(api: OpenAPI, routes: RouteWrapper, config: PlaySwagg
     api.setExternalDocs(parseExternalDocumentation(annotation.externalDocs))
     api.setServers(parseServers(annotation.servers).asJava)
     api.setSecurity(parseSecurities(annotation.security).asJava)
-    api.setExtensions(parseExtensions(annotation.extensions))
+    api.setExtensions(parseExtensions(annotation.extensions).asJava)
   }
 
   private def parseInfo(annotation: io.swagger.v3.oas.annotations.info.Info): Info = {
@@ -310,7 +315,7 @@ class PlayReader @Inject()(api: OpenAPI, routes: RouteWrapper, config: PlaySwagg
     obj.setTermsOfService(annotation.termsOfService)
     obj.setContact(parseContact(annotation.contact))
     obj.setLicense(parseLicense(annotation.license))
-    obj.setExtensions(parseExtensions(annotation.extensions))
+    obj.setExtensions(parseExtensions(annotation.extensions).asJava)
     obj
   }
 
@@ -319,7 +324,7 @@ class PlayReader @Inject()(api: OpenAPI, routes: RouteWrapper, config: PlaySwagg
     obj.setName(annotation.name)
     obj.setUrl(annotation.url)
     obj.setEmail(annotation.email)
-    obj.setExtensions(parseExtensions(annotation.extensions))
+    obj.setExtensions(parseExtensions(annotation.extensions).asJava)
     obj
   }
 
@@ -327,7 +332,7 @@ class PlayReader @Inject()(api: OpenAPI, routes: RouteWrapper, config: PlaySwagg
     val obj = new License()
     obj.setName(annotation.name)
     obj.setUrl(annotation.url)
-    obj.setExtensions(parseExtensions(annotation.extensions))
+    obj.setExtensions(parseExtensions(annotation.extensions).asJava)
     obj
   }
 
@@ -336,17 +341,17 @@ class PlayReader @Inject()(api: OpenAPI, routes: RouteWrapper, config: PlaySwagg
     obj.setName(annotation.name)
     obj.setDescription(annotation.description)
     obj.setExternalDocs(parseExternalDocumentation(annotation.externalDocs))
-    obj.setExtensions(parseExtensions(annotation.extensions))
+    obj.setExtensions(parseExtensions(annotation.extensions).asJava)
     obj
   }
 
-  private def parseTags(annotations: Array[io.swagger.v3.oas.annotations.tags.Tag]): List[Tag] = annotations.toList.map(parseTag(_))
+  private def parseTags(annotations: Array[io.swagger.v3.oas.annotations.tags.Tag]): List[Tag] = annotations.toList.map(parseTag)
 
   private def parseExternalDocumentation(annotation: io.swagger.v3.oas.annotations.ExternalDocumentation): ExternalDocumentation = {
     val obj = new ExternalDocumentation()
     obj.setUrl(annotation.url)
     obj.setDescription(annotation.description)
-    obj.setExtensions(parseExtensions(annotation.extensions))
+    obj.setExtensions(parseExtensions(annotation.extensions).asJava)
     obj
   }
 
@@ -355,20 +360,20 @@ class PlayReader @Inject()(api: OpenAPI, routes: RouteWrapper, config: PlaySwagg
     obj.setUrl(annotation.url)
     obj.setDescription(annotation.description)
     obj.setVariables(parseServerVariables(annotation.variables))
-    obj.setExtensions(parseExtensions(annotation.extensions))
+    obj.setExtensions(parseExtensions(annotation.extensions).asJava)
     obj
   }
 
-  private def parseServers(annotations: Array[io.swagger.v3.oas.annotations.servers.Server]): List[Server] = annotations.toList.map(parseServer(_))
+  private def parseServers(annotations: Array[io.swagger.v3.oas.annotations.servers.Server]): List[Server] = annotations.toList.map(parseServer)
 
   private def parseServerVariables(annotations: Array[io.swagger.v3.oas.annotations.servers.ServerVariable]): ServerVariables = {
     val obj = new ServerVariables()
     for (annotation <- annotations) {
       val obj2 = new ServerVariable()
-      obj2.setEnum(java.util.Arrays.asList(annotation.allowableValues))
+      obj2.setEnum(annotation.allowableValues.toList.asJava)
       obj2.setDescription(annotation.description)
       obj2.setDefault(annotation.defaultValue)
-      obj2.extensions(parseExtensions(annotation.extensions))
+      obj2.extensions(parseExtensions(annotation.extensions).asJava)
       obj.addServerVariable(annotation.name, obj2)
     }
     obj
@@ -376,16 +381,15 @@ class PlayReader @Inject()(api: OpenAPI, routes: RouteWrapper, config: PlaySwagg
 
   private def parseSecurityRequirement(annotation: io.swagger.v3.oas.annotations.security.SecurityRequirement): SecurityRequirement = {
     val obj = new SecurityRequirement()
-    val list: java.util.List[String] = java.util.Arrays.asList(annotation.scopes)
-    obj.addList(annotation.name, list)
+    obj.addList(annotation.name, annotation.scopes.toList.asJava)
     obj
   }
 
   private def parseSecurities(annotations: Array[io.swagger.v3.oas.annotations.security.SecurityRequirement]): List[SecurityRequirement] =
-    annotations.toList.map(parseSecurityRequirement(_))
+    annotations.toList.map(parseSecurityRequirement)
 
-  private def parseExtensions(annotations: Array[io.swagger.v3.oas.annotations.extensions.Extension]): java.util.Map[String, AnyRef] = {
-    java.util.Collections.emptyMap[String, AnyRef]
+  private def parseExtensions(annotations: Array[io.swagger.v3.oas.annotations.extensions.Extension]): Map[String, AnyRef] = {
+    Map.empty[String, AnyRef]
   }
 
   /*
@@ -549,10 +553,10 @@ class PlayReader @Inject()(api: OpenAPI, routes: RouteWrapper, config: PlaySwagg
         .deprecated(apiOperation.deprecated)
         .requestBody(parseRequestBody(apiOperation.requestBody))
         .security(parseSecurities(apiOperation.security).asJava)
-        .extensions(parseExtensions(apiOperation.extensions))
+        .extensions(parseExtensions(apiOperation.extensions).asJava)
 
       val parameters = parseParameters(apiOperation.parameters)
-      parameters.foreach(operation.addParametersItem(_))
+      parameters.foreach(operation.addParametersItem)
     }
 
     if (apiOperation == null || apiOperation.responses.isEmpty) {
@@ -586,7 +590,7 @@ class PlayReader @Inject()(api: OpenAPI, routes: RouteWrapper, config: PlaySwagg
 
     // Pick parameter from route
     val parameters = getParameters(cls, method, route)
-    parameters.foreach(operation.addParametersItem(_))
+    parameters.foreach(operation.addParametersItem)
 
     if (responses.isEmpty) {
       val response = new ApiResponse()
@@ -618,12 +622,12 @@ class PlayReader @Inject()(api: OpenAPI, routes: RouteWrapper, config: PlaySwagg
       .schema(parseSchema(annotation.schema))
       .examples(parseExamples(annotation.examples).asJava)
       .content(parseContents(annotation.content))
-      .extensions(parseExtensions(annotation.extensions))
+      .extensions(parseExtensions(annotation.extensions).asJava)
       .$ref(annotation.ref)
   }
 
   private def parseParameters(annotations: Array[io.swagger.v3.oas.annotations.Parameter]): List[ApiParameter] =
-    annotations.toList.filter(!_.hidden).map(parseParameter(_))
+    annotations.toList.filter(!_.hidden).map(parseParameter)
 
   private def parseResponses(annotation: io.swagger.v3.oas.annotations.responses.ApiResponses): ApiResponses = parseResponses(annotation.value())
 
@@ -632,7 +636,7 @@ class PlayReader @Inject()(api: OpenAPI, routes: RouteWrapper, config: PlaySwagg
   private def parseResponses(annotations: List[io.swagger.v3.oas.annotations.responses.ApiResponse]): ApiResponses = {
     val obj = new ApiResponses()
     if (annotations.length == 1) {
-      val response = parseResponse(annotations(0))
+      val response = parseResponse(annotations.head)
       obj.setDefault(response)
     } else {
       for (annotation <- annotations) {
@@ -654,7 +658,7 @@ class PlayReader @Inject()(api: OpenAPI, routes: RouteWrapper, config: PlaySwagg
       .description(annotation.description)
       .headers(parseHeaders(annotation.headers).asJava)
       .content(parseContents(annotation.content))
-      .extensions(parseExtensions(annotation.extensions))
+      .extensions(parseExtensions(annotation.extensions).asJava)
       .$ref(annotation.ref)
   }
 
@@ -677,7 +681,7 @@ class PlayReader @Inject()(api: OpenAPI, routes: RouteWrapper, config: PlaySwagg
       .content(parseContents(annotation.content))
       .description(annotation.description)
       .required(annotation.required)
-      .extensions(parseExtensions(annotation.extensions))
+      .extensions(parseExtensions(annotation.extensions).asJava)
       .$ref(annotation.ref)
   }
 
@@ -696,7 +700,7 @@ class PlayReader @Inject()(api: OpenAPI, routes: RouteWrapper, config: PlaySwagg
       .examples(parseExamples(annotation.examples).asJava)
       .encoding(parseEncodings(annotation.encoding).asJava)
       .schema(parseSchema(annotation.schema))
-      .extensions(parseExtensions(annotation.extensions))
+      .extensions(parseExtensions(annotation.extensions).asJava)
   }
 
   private def parseLink(annotation: io.swagger.v3.oas.annotations.links.Link): Link = {
@@ -707,7 +711,7 @@ class PlayReader @Inject()(api: OpenAPI, routes: RouteWrapper, config: PlaySwagg
       .operationRef(annotation.operationRef)
       .operationId(annotation.operationId)
       .description(annotation.description)
-      .extensions(parseExtensions(annotation.extensions))
+      .extensions(parseExtensions(annotation.extensions).asJava)
       .$ref(annotation.ref)
 
     // FIXME requestbody
@@ -728,7 +732,7 @@ class PlayReader @Inject()(api: OpenAPI, routes: RouteWrapper, config: PlaySwagg
       .summary(annotation.summary)
       .description(annotation.description)
       .$ref(annotation.ref)
-      .extensions(parseExtensions(annotation.extensions))
+      .extensions(parseExtensions(annotation.extensions).asJava)
   }
 
   private def parseExamples(annotations: Array[io.swagger.v3.oas.annotations.media.ExampleObject]): Map[String, Example] =
@@ -742,7 +746,7 @@ class PlayReader @Inject()(api: OpenAPI, routes: RouteWrapper, config: PlaySwagg
       .explode(annotation.explode)
       .allowReserved(annotation.allowReserved)
       .headers(parseHeaders(annotation.headers).asJava)
-      .extensions(parseExtensions(annotation.extensions))
+      .extensions(parseExtensions(annotation.extensions).asJava)
   }
 
   private def parseEncodings(annotations: Array[io.swagger.v3.oas.annotations.media.Encoding]): Map[String, Encoding] =
@@ -912,7 +916,7 @@ class PlayReader @Inject()(api: OpenAPI, routes: RouteWrapper, config: PlaySwagg
     !isResourceClass(cls)
   }
 
-  private def isResourceClass(cls: Class[_]) = cls.getAnnotation(classOf[Schema[_]]) != null
+  private def isResourceClass(cls: Class[_]) = cls.getAnnotation(classOf[io.swagger.v3.oas.annotations.media.Schema]) != null
 
   /*
   private def extractTags(api: Api): Set[String] = {
@@ -1030,7 +1034,7 @@ class PlayReader @Inject()(api: OpenAPI, routes: RouteWrapper, config: PlaySwagg
   }
 
   private object ContainerWrapper {
-    type Wrapper = (String, (Schema[_]) => Schema[_])
+    type Wrapper = (String, Schema[_] => Schema[_])
 
     val LIST: Wrapper = ("list", wrapList)
     val ARRAY: Wrapper = ("array", wrapList)

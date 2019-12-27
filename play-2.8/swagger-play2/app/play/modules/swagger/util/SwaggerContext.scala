@@ -1,7 +1,9 @@
 package play.modules.swagger.util
 
+import io.swagger.v3.core.filter.OpenAPISpecFilter
+
 import collection.mutable.ListBuffer
-import org.slf4j.{LoggerFactory, Logger}
+import org.slf4j.{Logger, LoggerFactory}
 
 /**
   * @author ayush
@@ -16,7 +18,15 @@ object SwaggerContext {
   private val classLoaders = ListBuffer.empty[ClassLoader]
   registerClassLoader(this.getClass.getClassLoader)
 
+  private var _filter: OpenAPISpecFilter = null
+
   def registerClassLoader(cl: ClassLoader) = this.classLoaders += cl
+
+  def registerFilter(filter: OpenAPISpecFilter): Unit = {
+    _filter = filter
+  }
+
+  def filter: Option[OpenAPISpecFilter] = Option(_filter)
 
   def loadClass(name: String) = {
     var clazz: Class[_] = null

@@ -17,16 +17,16 @@
 package play.modules.swagger
 
 import javax.inject.Inject
-import io.swagger.config.{ FilterFactory, ScannerFactory }
 import play.modules.swagger.util.SwaggerContext
-import io.swagger.core.filter.SwaggerSpecFilter
 import play.api.inject.ApplicationLifecycle
 import play.api.Application
 import play.api.routing.Router
+
 import scala.concurrent.Future
 import scala.jdk.CollectionConverters._
 import org.apache.commons.lang3.StringUtils
 import com.typesafe.scalalogging._
+import io.swagger.v3.core.filter.OpenAPISpecFilter
 
 trait SwaggerPlugin
 
@@ -41,7 +41,7 @@ class SwaggerPluginImpl @Inject() (lifecycle: ApplicationLifecycle, app: Applica
 
   SwaggerContext.registerClassLoader(app.classloader)
 
-  ScannerFactory.setScanner(scanner)
+  // ScannerFactory.setScanner(scanner)
 
   val config = app.configuration
 
@@ -50,7 +50,7 @@ class SwaggerPluginImpl @Inject() (lifecycle: ApplicationLifecycle, app: Applica
       case value if isEmpty(value) =>
       case e => {
         try {
-          FilterFactory setFilter SwaggerContext.loadClass(e).newInstance.asInstanceOf[SwaggerSpecFilter]
+          SwaggerContext.registerFilter(SwaggerContext.loadClass(e).newInstance.asInstanceOf[OpenAPISpecFilter])
           logger.debug("Setting swagger.filter to %s".format(e))
         } catch {
           case ex: Exception => logger.error(s"Failed to load filter $e", ex)

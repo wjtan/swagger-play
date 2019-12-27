@@ -1,11 +1,17 @@
 package play.modules.swagger
 
-import io.swagger.annotations.Api
-import io.swagger.config._
-import io.swagger.models.{ Contact, Info, License, Scheme, Swagger }
+//import io.swagger.annotations.Api
+//import io.swagger.config._
+//import io.swagger.models.{Contact, Info, License, Scheme, Swagger}
+import java.util
+
 import org.apache.commons.lang3.StringUtils
 import com.typesafe.scalalogging._
+import io.swagger.v3.oas.integration.api.{OpenAPIConfiguration, OpenApiScanner}
+import io.swagger.v3.oas.models.OpenAPI
+import io.swagger.v3.oas.models.info.{Contact, Info, License}
 import play.modules.swagger.util.SwaggerContext
+
 import scala.jdk.CollectionConverters._
 import javax.inject.Inject
 
@@ -13,10 +19,10 @@ import javax.inject.Inject
  * Identifies Play Controllers annotated as Swagger API's.
  * Uses the Play Router to identify Controllers, and then tests each for the API annotation.
  */
-class PlayApiScanner @Inject() (playSwaggerConfig: PlaySwaggerConfig, route: RouteWrapper) extends Scanner with SwaggerConfig {
+class PlayApiScanner @Inject() (playSwaggerConfig: PlaySwaggerConfig, route: RouteWrapper) extends OpenApiScanner {
   private[this] val logger = Logger[PlayApiScanner]
 
-  private def updateInfoFromConfig(swagger: Swagger): Swagger = {
+  def updateInfoFromConfig(api: OpenAPI): Unit = {
     val info = new Info()
 
     if (StringUtils.isNotBlank(playSwaggerConfig.description)) {
@@ -47,21 +53,16 @@ class PlayApiScanner @Inject() (playSwaggerConfig: PlaySwaggerConfig, route: Rou
         .name(playSwaggerConfig.license)
         .url(playSwaggerConfig.licenseUrl));
     }
-    swagger.info(info)
+    api.info(info)
   }
 
-  override def configure(swagger: Swagger): Swagger = {
-    if (playSwaggerConfig.schemes != null) {
-      for (s <- playSwaggerConfig.schemes) swagger.scheme(Scheme.forValue(s))
-    }
-    updateInfoFromConfig(swagger)
-    swagger.host(playSwaggerConfig.host)
-    swagger.basePath(playSwaggerConfig.basePath);
-
-  }
-
-  override def getFilterClass(): String = {
-    null
+  override def setConfiguration (config: OpenAPIConfiguration): Unit = {
+    //if (playSwaggerConfig.schemes != null) {
+    //  for (s <- playSwaggerConfig.schemes) swagger.scheme(Scheme.forValue(s))
+    //}
+    //updateInfoFromConfig()
+    //swagger.host(playSwaggerConfig.host)
+    //swagger.basePath(playSwaggerConfig.basePath);
   }
 
   override def classes(): java.util.Set[Class[_]] = {
@@ -82,7 +83,9 @@ class PlayApiScanner @Inject() (playSwaggerConfig: PlaySwaggerConfig, route: Rou
     val list = controllers.collect {
       case className: String if {
         try {
-          SwaggerContext.loadClass(className).getAnnotation(classOf[Api]) != null
+          // FIXME Check annotation
+          //SwaggerContext.loadClass(className).getAnnotation(classOf[Api]) != null
+          true
         } catch {
           case ex: Exception => {
             logger.error("Problem loading class:  %s. %s: %s".format(className, ex.getClass.getName, ex.getMessage))
@@ -97,7 +100,5 @@ class PlayApiScanner @Inject() (playSwaggerConfig: PlaySwaggerConfig, route: Rou
     list.toSet.asJava
   }
 
-  override def getPrettyPrint(): Boolean = true
-
-  override def setPrettyPrint(x: Boolean): Unit = {}
+  override def resources(): util.Map[String, AnyRef] = Map.empty[String, AnyRef].asJava
 }

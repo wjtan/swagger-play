@@ -17,14 +17,13 @@
 package controllers
 
 import java.io.StringWriter
-import javax.xml.bind.annotation._
 
+import javax.xml.bind.annotation._
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
-import io.swagger.config.FilterFactory
-import io.swagger.core.filter.SpecFilter
-import io.swagger.models.Swagger
-import io.swagger.util.Json
+import io.swagger.v3.core.filter.SpecFilter
+import io.swagger.v3.core.util.Json
+import io.swagger.v3.oas.models.{OpenAPI, Paths}
 import play.api.http.HttpEntity
 import play.api.mvc._
 import play.modules.swagger.ApiListingCache
@@ -32,6 +31,7 @@ import play.modules.swagger.ApiListingCache
 import scala.jdk.CollectionConverters._
 import javax.inject.Inject
 import org.slf4j.LoggerFactory
+import play.modules.swagger.util.SwaggerContext
 
 object ErrorResponse {
   val ERROR = 1
@@ -70,7 +70,7 @@ class ApiHelpController @Inject() (cc: ControllerComponents, cache: ApiListingCa
     request =>
       implicit val requestHeader: RequestHeader = request
       val host: String = requestHeader.host
-      val resourceListing: Swagger = getResourceListing(host)
+      val resourceListing: OpenAPI = getResourceListing(host)
       val response: String = returnXml(request) match {
         case true => toXmlString(resourceListing)
         case false => toJsonString(resourceListing)
@@ -82,7 +82,7 @@ class ApiHelpController @Inject() (cc: ControllerComponents, cache: ApiListingCa
     request =>
       implicit val requestHeader: RequestHeader = request
       val host: String = requestHeader.host
-      val apiListing: Swagger = getApiListing(path, host)
+      val apiListing: OpenAPI = getApiListing(path, host)
       val response: String = returnXml(request) match {
         case true => toXmlString(apiListing)
         case false => toJsonString(apiListing)
@@ -111,7 +111,7 @@ class SwaggerBaseApiController @Inject() (cc: ControllerComponents, cache: ApiLi
   /**
    * Get a list of all top level resources
    */
-  protected def getResourceListing(host: String)(implicit requestHeader: RequestHeader): Swagger = {
+  protected def getResourceListing(host: String)(implicit requestHeader: RequestHeader): OpenAPI = {
     logger.debug("ApiHelpInventory.getRootResources")
     val docRoot = ""
     val queryParams = (for ((key, value) <- requestHeader.queryString) yield {
@@ -124,17 +124,17 @@ class SwaggerBaseApiController @Inject() (cc: ControllerComponents, cache: ApiLi
       (key, value.toList.asJava)
     }).toMap
 
-    val f = new SpecFilter
-    val l: Option[Swagger] = cache.listing(docRoot, host)
+    val filter = new SpecFilter
+    val l: Option[OpenAPI] = cache.listing(docRoot, host)
 
-    val specs: Swagger = l match {
+    val specs: OpenAPI = l match {
       case Some(m) => m
-      case _ => new Swagger()
+      case _ => new OpenAPI()
     }
 
-    val hasFilter = Option(FilterFactory.getFilter)
+    val hasFilter = SwaggerContext.filter
     hasFilter match {
-      case Some(filter) => f.filter(specs, FilterFactory.getFilter, queryParams.asJava, cookies.asJava, headers.asJava)
+      case Some(f) => filter.filter(specs, f, queryParams.asJava, cookies.asJava, headers.asJava)
       case None => specs
     }
 
@@ -143,29 +143,31 @@ class SwaggerBaseApiController @Inject() (cc: ControllerComponents, cache: ApiLi
   /**
    * Get detailed API/models for a given resource
    */
-  protected def getApiListing(resourceName: String, host: String)(implicit requestHeader: RequestHeader): Swagger = {
+  protected def getApiListing(resourceName: String, host: String)(implicit requestHeader: RequestHeader): OpenAPI = {
     logger.debug("ApiHelpInventory.getResource(%s)".format(resourceName))
     val docRoot = ""
-    val f = new SpecFilter
+    val filter = new SpecFilter
     val queryParams = requestHeader.queryString.map { case (key, value) => key -> value.toList.asJava }
     val cookies = requestHeader.cookies.map { cookie => cookie.name -> cookie.value }.toMap.asJava
     val headers = requestHeader.headers.toMap.map { case (key, value) => key -> value.toList.asJava }
     val pathPart = resourceName
 
-    val l: Option[Swagger] = cache.listing(docRoot, host)
-    val specs: Swagger = l match {
+    val l: Option[OpenAPI] = cache.listing(docRoot, host)
+    val specs: OpenAPI = l match {
       case Some(m) => m
-      case _ => new Swagger()
+      case _ => new OpenAPI()
     }
-    val hasFilter = Option(FilterFactory.getFilter)
+    val hasFilter = SwaggerContext.filter
 
     val clone = hasFilter match {
-      case Some(filter) => f.filter(specs, FilterFactory.getFilter, queryParams.asJava, cookies, headers.asJava)
+      case Some(f) => filter.filter(specs, f, queryParams.asJava, cookies, headers.asJava)
       case None => specs
     }
     val paths = clone.getPaths.asScala
     val filteredPaths = paths.view.filterKeys(_.startsWith(pathPart)).toMap
-    clone.setPaths(filteredPaths.asJava)
+    val newPaths = new Paths()
+    newPaths.putAll(filteredPaths.asJava)
+    clone.setPaths(newPaths)
     clone
   }
 

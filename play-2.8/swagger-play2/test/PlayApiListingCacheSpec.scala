@@ -1,10 +1,8 @@
 import java.io.File
 
-import io.swagger.config.ScannerFactory
-import io.swagger.models.{ArrayModel, HttpMethod, ModelImpl, Swagger}
-import io.swagger.models.parameters.{BodyParameter, PathParameter, QueryParameter}
-import io.swagger.models.properties.{ArrayProperty, RefProperty, StringProperty}
-import io.swagger.util.Json
+import io.swagger.v3.core.util.Json
+import io.swagger.v3.oas.models.{OpenAPI, PathItem}
+import io.swagger.v3.oas.models.PathItem.HttpMethod
 import play.modules.swagger._
 import play.routes.compiler.{Route => PlayRoute}
 import org.junit.runner.RunWith
@@ -57,63 +55,63 @@ PUT /api/dog/:id testdata.DogController.add0(id:String)
     license = "license",
     licenseUrl = "http://licenseUrl")
 
-  val swagger = new Swagger()
+  // val swagger = new OpenAPI()
   val route = new RouteWrapper(routesRules)
   val scanner = new PlayApiScanner(swaggerConfig, route)
-  val reader = new PlayReader(swagger, route, swaggerConfig)
-  ScannerFactory.setScanner(scanner)
+  val readerProvider = new PlayReaderProvider(route, swaggerConfig)
+  // val reader = new PlayReader(swagger, route, swaggerConfig)
 
   "ApiListingCache" should {
 
     "load all API specs" in {
 
       val docRoot = ""
-      val swagger = new ApiListingCache(reader).listing(docRoot, "127.0.0.1")
+      val api = new ApiListingCache(readerProvider).listing(docRoot, "127.0.0.1")
 
-      logger.debug("swagger: " + toJsonString(swagger))
-      swagger must beSome
+      logger.debug("swagger: " + toJsonString(api))
+      api must beSome
 
-      swagger must beSome
-      swagger.get.getSwagger must beEqualTo("2.0")
-      swagger.get.getBasePath must beEqualTo(basePath)
-      swagger.get.getPaths.size must beEqualTo(7)
-      swagger.get.getDefinitions.size must beEqualTo(3)
-      swagger.get.getHost must beEqualTo(swaggerConfig.host)
-      swagger.get.getInfo.getContact.getName must beEqualTo(swaggerConfig.contact)
-      swagger.get.getInfo.getVersion must beEqualTo(swaggerConfig.version)
-      swagger.get.getInfo.getTitle must beEqualTo(swaggerConfig.title)
-      swagger.get.getInfo.getTermsOfService must beEqualTo(swaggerConfig.termsOfServiceUrl)
-      swagger.get.getInfo.getLicense.getName must beEqualTo(swaggerConfig.license)
+      api must beSome
+      api.get.getOpenapi must beEqualTo("3.0.1")
+      //api.get.getBasePath must beEqualTo(basePath)
+      api.get.getPaths.size must beEqualTo(7)
+      api.get.getComponents.getSchemas.size must beEqualTo(3)
+      //api.get.getHost must beEqualTo(swaggerConfig.host)
+      api.get.getInfo.getContact.getName must beEqualTo(swaggerConfig.contact)
+      api.get.getInfo.getVersion must beEqualTo(swaggerConfig.version)
+      api.get.getInfo.getTitle must beEqualTo(swaggerConfig.title)
+      api.get.getInfo.getTermsOfService must beEqualTo(swaggerConfig.termsOfServiceUrl)
+      api.get.getInfo.getLicense.getName must beEqualTo(swaggerConfig.license)
 
-      val pathDoc = swagger.get.getPaths.get("/document/{settlementId}/files/{fileId}/accept")
-      pathDoc.getOperations.size must beEqualTo(1)
+      val pathDoc = api.get.getPaths.get("/document/{settlementId}/files/{fileId}/accept")
+      pathDoc.readOperationsMap.size must beEqualTo(1)
 
-      val opDocPost = pathDoc.getOperationMap.get(HttpMethod.POST)
+      val opDocPost = pathDoc.readOperationsMap.get(HttpMethod.POST)
       opDocPost.getOperationId must beEqualTo("acceptsettlementfile")
       opDocPost.getParameters.size() must beEqualTo(3)
       opDocPost.getParameters.get(0).getDescription must beEqualTo("Id of the settlement to accept a file on.")
       opDocPost.getParameters.get(1).getDescription must beEqualTo("File id of the file to accept.")
 
-      val pathSearch = swagger.get.getPaths.get("/search")
-      pathSearch.getOperations.size must beEqualTo(1)
+      val pathSearch = api.get.getPaths.get("/search")
+      pathSearch.readOperationsMap.size must beEqualTo(1)
 
-      val opSearchGet = pathSearch.getOperationMap.get(HttpMethod.GET)
+      val opSearchGet = pathSearch.readOperationsMap.get(HttpMethod.GET)
       opSearchGet.getParameters.size() must beEqualTo(3)
       opSearchGet.getDescription must beEqualTo("Search for a settlement with personal number and property id.")
       opSearchGet.getParameters.get(0).getDescription must beEqualTo("A personal number of one of the sellers.")
       opSearchGet.getParameters.get(1).getDescription must beEqualTo("The cadastre or share id.")
 
       //val pathSearch2 = swagger.get.getPaths.get("/search2")
-      //pathSearch2.getOperations.size must beEqualTo(1)
+      //pathSearch2.readOperationsMap.size must beEqualTo(1)
 
-      //val opSearchGet2 = pathSearch2.getOperationMap.get(HttpMethod.GET)
+      //val opSearchGet2 = pathSearch2.readOperationsMap.get(HttpMethod.GET)
       //opSearchGet2.getParameters.size() must beEqualTo(1)
       //opSearchGet2.getParameters.get(0).getDescription must beEqualTo("The cadastre or share id.")
 
-      val pathPOI = swagger.get.getPaths.get("/pointsofinterest")
-      pathPOI.getOperations.size must beEqualTo(1)
+      val pathPOI = api.get.getPaths.get("/pointsofinterest")
+      pathPOI.readOperationsMap.size must beEqualTo(1)
 
-      val opPOIGet = pathPOI.getOperationMap.get(HttpMethod.GET)
+      val opPOIGet = pathPOI.readOperationsMap.get(HttpMethod.GET)
       opPOIGet.getParameters.size() must beEqualTo(5)
       opPOIGet.getDescription must beEqualTo("Returns points of interest")
       opPOIGet.getParameters.get(0).getDescription must beEqualTo("Minimum easting for provided extent")
@@ -121,29 +119,25 @@ PUT /api/dog/:id testdata.DogController.add0(id:String)
       opPOIGet.getParameters.get(2).getDescription must beEqualTo("Maximum easting for provided extent")
       opPOIGet.getParameters.get(3).getDescription must beEqualTo("Maximum northing for provided extent")
 
-      val pathCat = swagger.get.getPaths.get("/cat")
-      pathCat.getOperations.size must beEqualTo(2)
+      val pathCat = api.get.getPaths.get("/cat")
+      pathCat.readOperationsMap.size must beEqualTo(2)
 
-      val opCatGet = pathCat.getOperationMap.get(HttpMethod.GET)
+      val opCatGet = pathCat.readOperationsMap.get(HttpMethod.GET)
       opCatGet.getOperationId must beEqualTo("listCats")
       opCatGet.getParameters.asScala must beEmpty
-      opCatGet.getConsumes must beNull
       opCatGet.getResponses.get("200").getResponseSchema.asInstanceOf[ArrayModel].getItems.asInstanceOf[RefProperty].getSimpleRef must beEqualTo("Cat")
-      opCatGet.getProduces must beNull
 
-      val opCatPut = pathCat.getOperationMap.get(HttpMethod.PUT)
+      val opCatPut = pathCat.readOperationsMap.get(HttpMethod.PUT)
       opCatPut.getOperationId must beEqualTo("add1")
       opCatPut.getParameters.asScala.head.getName must beEqualTo("cat")
       opCatPut.getParameters.asScala.head.getIn must beEqualTo("body")
       opCatPut.getParameters.asScala.head.asInstanceOf[BodyParameter].getSchema.getReference must beEqualTo("#/definitions/Cat")
-      opCatPut.getConsumes must beNull
       opCatPut.getResponses.get("200").getResponseSchema.asInstanceOf[ModelImpl].getType must beEqualTo("string")
-      opCatPut.getProduces must beNull
 
-      val pathCat43 = swagger.get.getPaths.get("/cat43")
-      pathCat43.getOperations.size must beEqualTo(1)
+      val pathCat43 = api.get.getPaths.get("/cat43")
+      pathCat43.readOperationsMap.size must beEqualTo(1)
 
-      val opCatGet43 = pathCat43.getOperationMap.get(HttpMethod.GET)
+      val opCatGet43 = pathCat43.readOperationsMap.get(HttpMethod.GET)
       opCatGet43.getOperationId must beEqualTo("test issue #43_nick")
       opCatGet43.getResponses.get("200").getResponseSchema.asInstanceOf[ArrayModel].getItems.asInstanceOf[RefProperty].getSimpleRef must beEqualTo("Cat")
 
@@ -155,17 +149,17 @@ PUT /api/dog/:id testdata.DogController.add0(id:String)
       opCatGet43.getParameters.get(1).getIn must beEqualTo("query")
       opCatGet43.getParameters.get(1).asInstanceOf[QueryParameter].getType must beEqualTo("integer")
 
-      val pathDog = swagger.get.getPaths.get("/dog")
-      pathDog.getOperations.size must beEqualTo(2)
+      val pathDog = api.get.getPaths.get("/dog")
+      pathDog.readOperations.size must beEqualTo(2)
 
-      val opDogGet = pathDog.getOperationMap.get(HttpMethod.GET)
+      val opDogGet = pathDog.readOperationsMap.get(HttpMethod.GET)
       opDogGet.getOperationId must beEqualTo("listDogs")
       opDogGet.getParameters.asScala must beEmpty
       opDogGet.getConsumes.asScala.toList must beEqualTo(List("application/json", "application/xml"))
       opDogGet.getResponses.get("200").getResponseSchema.asInstanceOf[ArrayModel].getItems.asInstanceOf[RefProperty].getSimpleRef must beEqualTo("Dog")
       opDogGet.getProduces.asScala.toList must beEqualTo(List("application/json", "application/xml"))
 
-      val opDogPut = pathDog.getOperationMap.get(HttpMethod.PUT)
+      val opDogPut = pathDog.readOperationsMap.get(HttpMethod.PUT)
       opDogPut.getOperationId must beEqualTo("add1")
       opDogPut.getParameters.asScala.head.getName must beEqualTo("dog")
       opDogPut.getParameters.asScala.head.getIn must beEqualTo("body")
@@ -174,10 +168,10 @@ PUT /api/dog/:id testdata.DogController.add0(id:String)
       opDogPut.getResponses.get("200").getResponseSchema.asInstanceOf[ModelImpl].getType must beEqualTo("string")
       opDogPut.getProduces.asScala.toList must beEqualTo(List("application/json", "application/xml"))
 
-      val pathDogParam = swagger.get.getPaths.get("/dog/{id}")
-      pathDogParam.getOperations.size must beEqualTo(1)
+      val pathDogParam = api.get.getPaths.get("/dog/{id}")
+      pathDogParam.readOperationsMap.size must beEqualTo(1)
 
-      val opDogParamPut = pathDogParam.getOperationMap.get(HttpMethod.PUT)
+      val opDogParamPut = pathDogParam.readOperationsMap.get(HttpMethod.PUT)
       opDogParamPut.getOperationId must beEqualTo("add0")
       opDogParamPut.getParameters.asScala.head.getName must beEqualTo("id")
       opDogParamPut.getParameters.asScala.head.getIn must beEqualTo("path")
@@ -186,12 +180,12 @@ PUT /api/dog/:id testdata.DogController.add0(id:String)
       opDogParamPut.getProduces.asScala.toList must beEqualTo(List("application/json", "application/xml"))
       opDogParamPut.getResponses.get("200").getResponseSchema.asInstanceOf[ModelImpl].getType must beEqualTo("string")
 
-      val catDef = swagger.get.getDefinitions.get("Cat").asInstanceOf[ModelImpl]
+      val catDef = api.get.getComponents.getSchemas.get("Cat")
       catDef.getType must beEqualTo("object")
       catDef.getProperties.containsKey("id") must beTrue
       catDef.getProperties.containsKey("name") must beTrue
 
-      val dogDef = swagger.get.getDefinitions.get("Dog").asInstanceOf[ModelImpl]
+      val dogDef = api.get.getComponents.getSchemas.get("Dog")
       dogDef.getType must beEqualTo("object")
       dogDef.getProperties.containsKey("id") must beTrue
       dogDef.getProperties.containsKey("name") must beTrue

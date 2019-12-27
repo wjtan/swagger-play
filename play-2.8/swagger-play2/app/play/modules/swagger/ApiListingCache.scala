@@ -1,36 +1,40 @@
 package play.modules.swagger
 
-import io.swagger.config._
-import io.swagger.models.Swagger
+import javax.inject.{Inject, Singleton}
+import io.swagger.v3.oas.models.OpenAPI
 
-import javax.inject.{ Inject, Singleton }
 import scala.jdk.CollectionConverters._
 import com.typesafe.scalalogging._
 
 @Singleton
-class ApiListingCache @Inject() (reader: PlayReader) {
+class ApiListingCache @Inject() (readerProvider: PlayReaderProvider, scanner: PlayApiScanner) {
   private[this] val logger = Logger[ApiListingCache]
 
-  var cache: Option[Swagger] = None
+  var cache: Option[OpenAPI] = None
 
-  def listing(docRoot: String, host: String): Option[Swagger] = {
+  def listing(docRoot: String, host: String): Option[OpenAPI] = {
     cache.orElse {
       logger.debug("Loading API metadata")
 
-      val scanner = ScannerFactory.getScanner()
-      val classes = scanner.classes()
-      var swagger = reader.read(classes.asScala.toSet)
+      val api = new OpenAPI()
 
-      scanner match {
-        case config: SwaggerConfig => {
-          swagger = config.configure(swagger)
-        }
-        case _ => // no config, do nothing
-      }
-      cache = Some(swagger)
+      //val scanner = ScannerFactory.getScanner()
+      scanner.updateInfoFromConfig(api)
+
+      val classes = scanner.classes().asScala.toList
+      val reader = readerProvider.get(api)
+      reader.read(classes)
+
+      //scanner match {
+      //  case config: SwaggerConfig => {
+      //    swagger = config.configure(swagger)
+      //  }
+      //  case _ => // no config, do nothing
+      //}
+      cache = Some(api)
       cache
     }
-    cache.get.setHost(host)
+    //cache.get.setHost(host)
     cache
   }
 }
