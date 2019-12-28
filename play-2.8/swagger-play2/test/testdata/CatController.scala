@@ -11,7 +11,7 @@ import play.api.mvc.InjectedController
 class CatController extends InjectedController {
 
   @Operation(
-    operationId = "addCat1",
+    // operationId = "addCat1",
     method = "PUT",
     responses = Array(
       new ApiResponse(content = Array(
@@ -19,7 +19,10 @@ class CatController extends InjectedController {
       ))
     )
   )
-  @RequestBody(description = "Cat object to add", required = true, new Schema(`type` = "testdata.Cat"))
+  @RequestBody(description = "Cat object to add", required = true,
+    content = Array(
+      new Content(schema = new Schema(implementation = classOf[Cat]))
+    ))
   def add1 = Action {
     request => Ok("test case")
   }
@@ -29,7 +32,10 @@ class CatController extends InjectedController {
     summary = "Updates cats nicely",
     method = "POST")
   @ApiResponse(responseCode = "405", description = "Invalid input")
-  @RequestBody(description = "Cat object to update", required = true, new Schema(`type` = "testdata.Cat"))
+  @RequestBody(description = "Cat object to update", required = true,
+    content = Array(
+      new Content(schema = new Schema(`type` = "testdata.Cat"))
+    ))
   def update = Action {
     request => Ok("test case")
   }

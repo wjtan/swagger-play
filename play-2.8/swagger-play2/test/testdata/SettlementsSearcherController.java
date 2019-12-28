@@ -18,8 +18,8 @@ import java.util.List;
 public class SettlementsSearcherController extends Controller {
     
     @Operation(
-            description = "Search for settlement",
-            summary = "Search for a settlement with personal number and property id.",
+            summary = "Search for settlement",
+            description = "Search for a settlement with personal number and property id.",
             method = "GET",
             operationId = "getsettlement",
             responses = {

@@ -10,8 +10,8 @@ import play.api.mvc.InjectedController
 // @Api(value = "/apitest/pointsofinterest", description = "Points of interest")
 class PointOfInterestController extends InjectedController {
   @Operation(
-    description = "Get points of interest",
-    summary = "Returns points of interest",
+    summary = "Get points of interest",
+    description = "Returns points of interest",
     method = "GET",
     operationId = "pointsofinterest",
     responses = Array(
@@ -21,9 +21,9 @@ class PointOfInterestController extends InjectedController {
     )
   )
   @ApiResponses(Array(
-    new ApiResponse(responseCode = Http.Status.BAD_REQUEST.toString, description = "Bad Request"),
-    new ApiResponse(responseCode = Http.Status.UNAUTHORIZED.toString, description = "Unauthorized"),
-    new ApiResponse(responseCode = Http.Status.INTERNAL_SERVER_ERROR.toString, description = "Server error")))
+    new ApiResponse(responseCode = "400", description = "Bad Request"),
+    new ApiResponse(responseCode = "401", description = "Unauthorized"),
+    new ApiResponse(responseCode = "500", description = "Server error")))
   @Parameter(description = "Token for logged in user.", name = "Authorization", required = false, schema = new Schema(`type` = "string"), in = ParameterIn.HEADER)
   def list(@Parameter(description = "Minimum easting for provided extent", required = true, schema = new Schema(defaultValue = "-19448.67")) eastingMin: Double,
     @Parameter(description = "Minimum northing for provided extent", required = true, schema = new Schema(defaultValue = "2779504.82")) northingMin: Double,

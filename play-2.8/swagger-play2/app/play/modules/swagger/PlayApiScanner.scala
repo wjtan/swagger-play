@@ -80,23 +80,24 @@ class PlayApiScanner @Inject() (playSwaggerConfig: PlaySwaggerConfig, route: Rou
         }
     }.distinct
 
-    val list = controllers.collect {
-      case className: String if {
-        try {
-          // FIXME Check annotation
-          //SwaggerContext.loadClass(className).getAnnotation(classOf[Api]) != null
-          true
-        } catch {
-          case ex: Exception => {
-            logger.error("Problem loading class:  %s. %s: %s".format(className, ex.getClass.getName, ex.getMessage))
-            false
-          }
-        }
-      } =>
-        logger.debug("Found API controller:  %s".format(className))
-        SwaggerContext.loadClass(className)
-    }
+//    val list = controllers.collect {
+//      case className: String if {
+//        try {
+//          // FIXME Check annotation
+//          //SwaggerContext.loadClass(className).getAnnotation(classOf[Api]) != null
+//          true
+//        } catch {
+//          case ex: Exception => {
+//            logger.error("Problem loading class:  %s. %s: %s".format(className, ex.getClass.getName, ex.getMessage))
+//            false
+//          }
+//        }
+//      } =>
+//        logger.debug("Found API controller:  %s".format(className))
+//        SwaggerContext.loadClass(className)
+//    }
 
+    val list = controllers.map(SwaggerContext.loadClass)
     list.toSet.asJava
   }
 

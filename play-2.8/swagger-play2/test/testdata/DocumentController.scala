@@ -22,9 +22,9 @@ class DocumentController extends InjectedController {
       ))
     ))
   @ApiResponses(Array(
-    new ApiResponse(responseCode = Http.Status.BAD_REQUEST.toString, description = "Bad Request"),
-    new ApiResponse(responseCode = Http.Status.UNAUTHORIZED.toString, description = "Unauthorized"),
-    new ApiResponse(responseCode = Http.Status.INTERNAL_SERVER_ERROR.toString, description = "Server error")))
+    new ApiResponse(responseCode = "400", description = "Bad Request"),
+    new ApiResponse(responseCode = "401", description = "Unauthorized"),
+    new ApiResponse(responseCode = "500", description = "Server error")))
   @Parameters(Array(
     new Parameter(description = "Token for logged in user.", name = "Authorization", required = false,
       schema = new Schema(`type`= "string"),
