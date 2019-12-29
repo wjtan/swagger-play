@@ -16,7 +16,6 @@ import io.swagger.v3.oas.models.parameters.{Parameter => ApiParameter}
 import io.swagger.v3.oas.models.responses._
 import io.swagger.v3.oas.models.security._
 import io.swagger.v3.oas.models.servers._
-//import io.swagger.v3.core.util.BaseReaderUtils
 import io.swagger.v3.core.util._
 import org.apache.commons.lang3.StringUtils
 import com.typesafe.scalalogging._

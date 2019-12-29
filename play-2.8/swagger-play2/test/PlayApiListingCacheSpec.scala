@@ -1,5 +1,6 @@
 import java.io.File
 
+import io.swagger.v3.core.converter.ModelConverters
 import io.swagger.v3.core.util.Json
 import io.swagger.v3.oas.models.{OpenAPI, PathItem}
 import io.swagger.v3.oas.models.PathItem.HttpMethod
@@ -14,6 +15,7 @@ import org.specs2.runner.JUnitRunner
 
 import scala.jdk.CollectionConverters._
 import org.slf4j.LoggerFactory
+import play.modules.swagger.util.SwaggerScalaModelConverter
 
 @RunWith(classOf[JUnitRunner])
 class PlayApiListingCacheSpec extends Specification with Mockito {
@@ -59,6 +61,8 @@ PUT /api/dog/:id testdata.DogController.add0(id:String)
 
   val route = new RouteWrapper(routesRules)
   val scanner = new PlayApiScanner(swaggerConfig, route)
+
+  ModelConverters.getInstance().addConverter(new SwaggerScalaModelConverter())
   val readerProvider = new PlayReaderProvider(route, swaggerConfig)
   // val reader = new PlayReader(swagger, route, swaggerConfig)
 
@@ -71,8 +75,6 @@ PUT /api/dog/:id testdata.DogController.add0(id:String)
 
       logger.debug("swagger: " + toJsonString(api))
       api must beSome
-
-      println(api.get.getComponents.getSchemas)
 
       api.get.getOpenapi must beEqualTo("3.0.1")
       //api.get.getBasePath must beEqualTo(basePath)
@@ -181,13 +183,11 @@ PUT /api/dog/:id testdata.DogController.add0(id:String)
       opDogParamPut.getResponses.get("default").getContent.asScala.toList.head._2.getSchema.getType must beEqualTo("string")
 
       val catDef = api.get.getComponents.getSchemas.get("Cat")
-      println(catDef.getName)
       catDef.getType must beEqualTo("object")
       catDef.getProperties.containsKey("id") must beTrue
       catDef.getProperties.containsKey("name") must beTrue
 
       val dogDef = api.get.getComponents.getSchemas.get("Dog")
-      println(dogDef.getName)
       dogDef.getType must beEqualTo("object")
       dogDef.getProperties.containsKey("id") must beTrue
       dogDef.getProperties.containsKey("name") must beTrue
