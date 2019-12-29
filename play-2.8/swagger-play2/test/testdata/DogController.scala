@@ -45,7 +45,7 @@ object DogController extends InjectedController {
       ))
     ))
   @RequestBody(description = "Dog object to add", required = true,
-    content = Array(new Content(schema = new Schema(`type`= "testdata.Dog"))))
+    content = Array(new Content(schema = new Schema(implementation = classOf[Dog]))))
   def add1 = Action {
     request => Ok("test case")
   }
@@ -64,7 +64,7 @@ object DogController extends InjectedController {
   @ApiResponses(Array())
   @RequestBody(description = "Dog object to add", required = true,
     content = Array(new Content(
-      schema = new Schema(`type`= "testdata.Dog"),
+      schema = new Schema(implementation = classOf[Dog]),
       mediaType = "application/json"
     ))
   )
@@ -89,8 +89,8 @@ object DogController extends InjectedController {
     new ApiResponse(responseCode = "666", description = "Big Problem")))
   @RequestBody(description = "Dog object to add", required = true,
     content = Array(
-      new Content(schema = new Schema(`type` = "testdata.Dog"), mediaType = "application/json"),
-      new Content(schema = new Schema(`type` = "testdata.Dog"), mediaType = "text/yaml")
+      new Content(schema = new Schema(implementation = classOf[Dog]), mediaType = "application/json"),
+      new Content(schema = new Schema(implementation = classOf[Dog]), mediaType = "text/yaml")
     ))
   def add3 = Action {
     request => Ok("test case")
@@ -102,7 +102,7 @@ object DogController extends InjectedController {
     method = "POST")
   @ApiResponse(responseCode = "405", description = "Invalid input")
   @RequestBody(description = "Dog object to update", required = true,
-    content = Array(new Content(schema = new Schema(`type` = "testdata.Dog"))))
+    content = Array(new Content(schema = new Schema(implementation = classOf[Dog]))))
   def update = Action {
     request => Ok("test case")
   }

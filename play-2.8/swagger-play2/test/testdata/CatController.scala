@@ -21,6 +21,7 @@ class CatController extends InjectedController {
   )
   @RequestBody(description = "Cat object to add", required = true,
     content = Array(
+      // new Content(schema = new Schema(`type` = "testdata.Cat"))
       new Content(schema = new Schema(implementation = classOf[Cat]))
     ))
   def add1 = Action {
@@ -34,7 +35,8 @@ class CatController extends InjectedController {
   @ApiResponse(responseCode = "405", description = "Invalid input")
   @RequestBody(description = "Cat object to update", required = true,
     content = Array(
-      new Content(schema = new Schema(`type` = "testdata.Cat"))
+      //new Content(schema = new Schema(`type` = "testdata.Cat"))
+      new Content(schema = new Schema(implementation = classOf[Cat]))
     ))
   def update = Action {
     request => Ok("test case")
@@ -92,7 +94,7 @@ class CatController extends InjectedController {
   @Parameters(Array(
     new Parameter(
       name = "test_issue_43_implicit_param",
-      schema = new Schema(`type`= "Option[Int]"),
+      schema = new Schema(implementation = classOf[Int]),
       description = "test issue #43 implicit param",
       in = ParameterIn.QUERY)))
   def testIssue43(test_issue_43_param: Option[Int]) = Action {

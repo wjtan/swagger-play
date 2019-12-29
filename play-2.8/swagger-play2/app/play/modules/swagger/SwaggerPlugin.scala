@@ -17,7 +17,7 @@
 package play.modules.swagger
 
 import javax.inject.Inject
-import play.modules.swagger.util.SwaggerContext
+import play.modules.swagger.util.{SwaggerContext, SwaggerScalaModelConverter}
 import play.api.inject.ApplicationLifecycle
 import play.api.Application
 import play.api.routing.Router
@@ -26,6 +26,7 @@ import scala.concurrent.Future
 import scala.jdk.CollectionConverters._
 import org.apache.commons.lang3.StringUtils
 import com.typesafe.scalalogging._
+import io.swagger.v3.core.converter.ModelConverters
 import io.swagger.v3.core.filter.OpenAPISpecFilter
 
 trait SwaggerPlugin
@@ -42,6 +43,8 @@ class SwaggerPluginImpl @Inject() (lifecycle: ApplicationLifecycle, app: Applica
   SwaggerContext.registerClassLoader(app.classloader)
 
   // ScannerFactory.setScanner(scanner)
+
+  ModelConverters.getInstance().addConverter(new SwaggerScalaModelConverter())
 
   val config = app.configuration
 

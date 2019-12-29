@@ -1,7 +1,5 @@
 package play.modules.swagger
 
-//import io.swagger.v3.oas.annotations._
-
 import io.swagger.v3.oas.annotations.{Operation => ApiOperation}
 import io.swagger.v3.core.converter.{AnnotatedType, ModelConverters}
 import io.swagger.v3.core.util.AnnotationsUtils
@@ -50,7 +48,8 @@ class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig)
   val SUCCESSFUL_OPERATION = "successful operation"
   val MEDIA_TYPE = "application/json"
 
-  private[this] val components = api.getComponents
+  private[this] val components = new Components()
+  api.setComponents(components)
 
   import StringUtils._
 
@@ -138,11 +137,6 @@ class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig)
     path.operation(httpMethod, operation)
   }
 
-
-  //      //readImplicitParameters(method, operation, cls)
-  //    }
-  //  }
-
   //                      for (scheme <- parseSchemes(apiOperation.protocols())) {
   //                          operation.scheme(scheme)
   //                      }
@@ -162,9 +156,7 @@ class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig)
   //                                  swagger.tag(new Tag().name(tag))
   //                              }
   //                          }
-  //
-  //                          operation.getVendorExtensions.putAll(BaseReaderUtils.parseExtensions(apiOperation.extensions()))
-  //                      }
+
 
   private def getPathFromRoute(pathPattern: PathPattern, basePath: String): String = {
     val sb = new StringBuilder()
@@ -468,16 +460,16 @@ class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig)
       val responseType = method.getGenericReturnType
 
       if (!isResult(responseType) && isValidResponse(responseType)) {
-        val schema = createSchema(responseType)
-        if (schema != null) {
-          val mediaType = new MediaType().schema(schema)
-          val content = new Content().addMediaType(MEDIA_TYPE, mediaType)
-          val response = new ApiResponse()
-          response
-            .description(SUCCESSFUL_OPERATION)
-            .content(content)
-          responses.setDefault(response)
-        }
+        createSchema(responseType)
+          .foreach(schema => {
+            val mediaType = new MediaType().schema(schema)
+            val content = new Content().addMediaType(MEDIA_TYPE, mediaType)
+            val response = new ApiResponse()
+            response
+              .description(SUCCESSFUL_OPERATION)
+              .content(content)
+            responses.setDefault(response)
+          })
       }
     }
 
@@ -490,14 +482,6 @@ class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig)
     // Tags
 
     // Parameters
-//    val parametersAnnotation = ReflectionUtils.getAnnotation(method, classOf[io.swagger.v3.oas.annotations.Parameters])
-//    if (parametersAnnotation != null) {
-//      for(parameterAnnotation <- parametersAnnotation.value){
-//        parseParameter(parameterAnnotation).foreach(operation.addParametersItem)
-//      }
-//    }
-
-    // Pick parameter from route
     val routeParameters = getParameters(cls, method, route)
     routeParameters.foreach(operation.addParametersItem)
 
@@ -509,14 +493,6 @@ class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig)
     }
 
     // ApiResponses
-//    val responseAnnotations = ReflectionUtils.getAnnotation(method, classOf[io.swagger.v3.oas.annotations.responses.ApiResponses])
-//    if (responseAnnotations != null && !responseAnnotations.value.isEmpty) {
-//      OperationParser.getApiResponses(responseAnnotations.value, null, null, components, null)
-//        .toOption
-//        .foreach(responses.putAll)
-//    }
-
-    // List of ApiResponse
     val responseList = ReflectionUtils.getRepeatableAnnotations(method, classOf[io.swagger.v3.oas.annotations.responses.ApiResponse])
     if (responseList != null && !responseList.isEmpty) {
       val array = responseList.asScala.toArray[io.swagger.v3.oas.annotations.responses.ApiResponse]
@@ -560,133 +536,6 @@ class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig)
 
     Option.apply(processedParameter)
   }
-//    val obj = new ApiParameter()
-//
-//    import io.swagger.v3.oas.annotations.enums.Explode
-//    annotation.explode match {
-//      case Explode.TRUE => obj.explode(true)
-//      case Explode.FALSE => obj.explode(false)
-//      case _ =>
-//    }
-//
-//    if (AnnotationsUtils.hasSchemaAnnotation(annotation.array.schema)) {
-//      obj.setSchema(parseArraySchema(annotation.array))
-//    } else {
-//      obj.schema(parseSchema(annotation.schema))
-//    }
-//
-//    obj
-//      .name(annotation.name)
-//      .in(annotation.in.toString)
-//      .description(annotation.description)
-//      .required(annotation.required)
-//      .deprecated(annotation.deprecated)
-//      .allowEmptyValue(annotation.allowEmptyValue)
-//      .allowReserved(annotation.allowReserved)
-//      .style(ApiParameter.StyleEnum.valueOf(annotation.style.toString))
-//      .examples(parseExamples(annotation.examples).asJava)
-//      .$ref(annotation.ref)
-//
-//    AnnotationsUtils.getContent(annotation.content, new Array[String](0), new Array[String](0), null, components, null)
-//      .toOption
-//      .foreach(obj.setContent)
-//
-//    if (annotation.extensions.length > 0) {
-//      AnnotationsUtils.getExtensions(annotation.extensions():_*).asScala.foreachEntry((k,v) => obj.addExtension(k, v))
-//    }
-//
-//    obj
-//  }
-
-//  private def parseParameters(annotations: Array[io.swagger.v3.oas.annotations.Parameter]): List[ApiParameter] =
-//    annotations.toList.filter(!_.hidden).map(parseParameter)
-
-//  private def parseExample(annotation: io.swagger.v3.oas.annotations.media.ExampleObject): Example = {
-//    val obj = new Example()
-//    obj
-//      .value(annotation.value)
-//      .externalValue(annotation.externalValue)
-//      .summary(annotation.summary)
-//      .description(annotation.description)
-//      .$ref(annotation.ref)
-//
-//    if (annotation.extensions.length > 0) {
-//      AnnotationsUtils.getExtensions(annotation.extensions():_*).asScala.foreachEntry((k,v) => obj.addExtension(k, v))
-//    }
-//    obj
-//  }
-//
-//  private def parseExamples(annotations: Array[io.swagger.v3.oas.annotations.media.ExampleObject]): Map[String, Example] =
-//    annotations.map(annotation => (annotation.name, parseExample(annotation))).toMap
-
-//  private def parseSchema(annotation: io.swagger.v3.oas.annotations.media.Schema): Schema[_] = {
-//    val schema =
-//      if (isVoid(annotation.implementation)) {
-//        new Schema
-//      } else {
-//        createSchema(annotation.implementation)
-//      }
-//
-//    import java.math.BigDecimal
-//    import io.swagger.v3.oas.annotations.media.Schema.AccessMode
-//    annotation.accessMode match {
-//      case AccessMode.READ_ONLY => schema.setReadOnly(true)
-//      case AccessMode.WRITE_ONLY => schema.setWriteOnly(true)
-//      case AccessMode.READ_WRITE | AccessMode.AUTO  => {
-//        schema.setReadOnly(true)
-//        schema.setWriteOnly(true)
-//      }
-//    }
-//
-//    // FIXME Enum
-//
-//    schema
-//      .name(annotation.name)
-//      .title(annotation.title)
-//      .description(annotation.description)
-//      .multipleOf(new BigDecimal(annotation.multipleOf()))
-//      .maximum(new BigDecimal(annotation.maximum))
-//      .exclusiveMaximum(annotation.exclusiveMaximum)
-//      .minimum(new BigDecimal(annotation.minimum))
-//      .exclusiveMinimum(annotation.exclusiveMinimum)
-//      .maxLength(annotation.maxLength)
-//      .minLength(annotation.minLength)
-//      .pattern(annotation.pattern)
-//      .minProperties(annotation.minProperties)
-//      .required(annotation.requiredProperties.toList.asJava)
-//      .format(annotation.format)
-//      .nullable(annotation.nullable)
-//      .deprecated(annotation.deprecated)
-//      .`type`(annotation.`type`)
-//      .$ref(annotation.ref)
-//
-//    AnnotationsUtils.getExternalDocumentation(annotation.externalDocs).toOption.foreach(schema.setExternalDocs)
-//    if (annotation.extensions.length > 0) {
-//      AnnotationsUtils.getExtensions(annotation.extensions():_*).asScala.foreachEntry((k,v) => schema.addExtension(k, v))
-//    }
-//
-//    api.schema(schema.getName, schema)
-//    schema
-//  }
-
-//  private def parseArraySchema(annotation: io.swagger.v3.oas.annotations.media.ArraySchema): ArraySchema = {
-//    val obj = new ArraySchema()
-//    if (AnnotationsUtils.hasSchemaAnnotation(annotation.schema)){
-//      obj.items(parseSchema(annotation.schema))
-//    }
-//
-//    if (AnnotationsUtils.hasSchemaAnnotation(annotation.arraySchema) &&
-//      annotation.arraySchema.isInstanceOf[io.swagger.v3.oas.annotations.media.ArraySchema]){
-//      val arraySchema = annotation.arraySchema.asInstanceOf[io.swagger.v3.oas.annotations.media.ArraySchema]
-//      obj.items(parseArraySchema(arraySchema))
-//    }
-//
-//    obj
-//      .minItems(annotation.minItems)
-//      .maxItems(annotation.maxItems)
-//      .uniqueItems(annotation.uniqueItems())
-//    obj
-//  }
 
   private val primitiveTypes: Map[String, Class[_]] = Map(
     "Int" -> classOf[java.lang.Integer],
@@ -785,22 +634,18 @@ class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig)
         // Ignore play.mvc.Http.Request
         if (!t.getTypeName.equals("[simple type, class play.mvc.Http$Request]")) {
           val schema = createSchema(t)
-          schema.setDefault(defaultField)
+          schema.foreach(_.setDefault(defaultField))
 
           val parameter: ApiParameter =
             if (route.path.has(p.name)) {
               // it's a path param
               val pathParameter = new PathParameter()
-              if (schema != null) {
-                pathParameter.setSchema(schema)
-              }
+              schema.foreach(pathParameter.setSchema)
               pathParameter
             } else {
               // it's a query string param
               val queryParameter = new QueryParameter()
-              if (schema != null) {
-                queryParameter.setSchema(schema)
-              }
+              schema.foreach(queryParameter.setSchema)
               queryParameter
             }
           parameter.setName(p.name)
@@ -871,36 +716,27 @@ class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig)
       output.toSet
   }*/
 
-  private def createSchema(t: Type): Schema[_] = {
-    val resolvedSchema = modelConverters.resolveAsResolvedSchema(new AnnotatedType().`type`(t))
+  private def createSchema(t: Type): Option[Schema[_]] = {
+    val resolvedSchema = modelConverters.readAllAsResolvedSchema(new AnnotatedType().`type`(t))
     if (resolvedSchema == null) {
-      return null
+      return Option.empty
     }
 
-    //enforcePrimitive(schema.schema, 0)
-    val schema = resolvedSchema.schema
-    api.schema(schema.getName, schema)
+    for ((modelName, model) <- resolvedSchema.referencedSchemas.asScala) {
+      components.addSchemas(modelName, model)
+    }
 
-    //for ((modelName, model) <- resolvedSchema.referencedSchemas.asScala) {
-    //   api.schema(modelName, model)
-    //}
-    schema
-  }
-
-  private def enforcePrimitive(in: Schema[_], level: Int): Schema[_] = {
-    // FIXME
-    //if (in.isInstanceOf[RefProperty]) {
-    //  return new StringSchema()
-    //}
-    if (in.isInstanceOf[ArraySchema]) {
-      if (level == 0) {
-        val array = in.asInstanceOf[ArraySchema]
-        array.setItems(enforcePrimitive(array.getItems, level + 1))
+    if (resolvedSchema.schema != null) {
+      if (isNotBlank(resolvedSchema.schema.getName)){
+        val schema = new Schema()
+        schema.set$ref(AnnotationsUtils.COMPONENTS_REF + resolvedSchema.schema.getName)
+        Option(schema)
       } else {
-        return new StringSchema()
+        Option(resolvedSchema.schema)
       }
+    } else {
+      Option.empty
     }
-    in
   }
 
 //  private def appendModels(t: Type): Unit = {
@@ -957,58 +793,5 @@ class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig)
       return PathItem.HttpMethod.valueOf(apiOperation.method.toUpperCase())
     }
     null
-  }
-
-  private def toArray(csString: String): Array[String] = {
-    if (isEmpty(csString)) {
-      return Array(csString)
-    }
-    var i = 0
-    val result = csString.split(",")
-    for (c <- result) {
-      result(i) = c.trim()
-      i += 1
-    }
-    result
-  }
-
-  private object ContainerWrapper {
-    type Wrapper = (String, Schema[_] => Schema[_])
-
-    val LIST: Wrapper = ("list", wrapList)
-    val ARRAY: Wrapper = ("array", wrapList)
-    val MAP: Wrapper = ("map", wrapMap)
-    val SET: Wrapper = ("set", wrapSet)
-
-    val ALL = List(LIST, ARRAY, MAP, SET)
-
-    def wrapList(schema: Schema[_]): Schema[_] = new ArraySchema().items(schema)
-
-    def wrapMap(schema: Schema[_]): Schema[_] = {
-      val schema = new MapSchema()
-      schema
-    }
-
-    def wrapSet(schema: Schema[_]): Schema[_] = {
-      new ArraySchema()
-        .items(schema)
-        .uniqueItems(true)
-    }
-  }
-
-  private def wrapContainer(container: String, property: Schema[_], allowed: ContainerWrapper.Wrapper*): Schema[_] = {
-    val wrappers =
-      if (allowed.isEmpty) {
-        ContainerWrapper.ALL
-      } else {
-        allowed
-      }
-
-    for (wrapper <- wrappers) {
-      if (wrapper._1.equalsIgnoreCase(container)) {
-        return wrapper._2.apply(property)
-      }
-    }
-    property
   }
 }
