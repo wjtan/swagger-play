@@ -5,9 +5,10 @@ import io.swagger.v3.oas.annotations.enums.ParameterIn
 import io.swagger.v3.oas.annotations.media._
 import io.swagger.v3.oas.annotations.parameters.RequestBody
 import io.swagger.v3.oas.annotations.responses._
+import io.swagger.v3.oas.annotations.servers.Server
 import play.api.mvc.InjectedController
 
-// @Api(value = "/apitest/cats", description = "play with cats")
+@Server(url = "/api", description = "play with cats")
 class CatController extends InjectedController {
 
   @Operation(

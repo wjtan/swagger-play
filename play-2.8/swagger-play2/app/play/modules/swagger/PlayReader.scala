@@ -1,5 +1,18 @@
 package play.modules.swagger
 
+import java.lang.annotation.Annotation
+import java.lang.reflect.Method
+import java.lang.reflect.Type
+import java.util
+import java.util.regex.Pattern
+
+import javax.inject.Inject
+import javax.inject.Singleton
+
+import scala.collection.mutable.ListBuffer
+import scala.jdk.CollectionConverters._
+import org.apache.commons.lang3.StringUtils
+import com.typesafe.scalalogging._
 import io.swagger.v3.oas.annotations.{Operation => ApiOperation}
 import io.swagger.v3.core.converter.{AnnotatedType, ModelConverters}
 import io.swagger.v3.core.util.AnnotationsUtils
@@ -17,28 +30,13 @@ import io.swagger.v3.oas.models.responses._
 import io.swagger.v3.oas.models.security._
 import io.swagger.v3.oas.models.servers._
 import io.swagger.v3.core.util._
-import org.apache.commons.lang3.StringUtils
-import com.typesafe.scalalogging._
+import io.swagger.v3.oas.integration._
+import io.swagger.v3.oas.integration.api._
 import play.modules.swagger.util.CrossUtil
 import play.modules.swagger.util.JavaOptionals._
 import play.routes.compiler._
 
-import scala.collection.mutable.ListBuffer
-import scala.jdk.CollectionConverters._
-import java.lang.annotation.Annotation
-import java.lang.reflect.Method
-import java.lang.reflect.Type
-import java.util.regex.Pattern
-
-import javax.inject.Inject
-import javax.inject.Singleton
-
-@Singleton
-class PlayReaderProvider @Inject() (routes: RouteWrapper, config: PlaySwaggerConfig) {
-  def get(api: OpenAPI): PlayReader = new  PlayReader(api, routes, config)
-}
-
-class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig) {
+class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
   private[this] val logger = Logger[PlayReader]
 
   private[this] val typeFactory = Json.mapper.getTypeFactory
@@ -47,12 +45,39 @@ class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig)
   val SUCCESSFUL_OPERATION = "successful operation"
   val MEDIA_TYPE = "application/json"
 
-  private[this] val components = new Components()
+  private[this] var api: OpenAPI = new OpenAPI()
+  private[this] var paths = new Paths()
+  private[this] var components = new Components()
+  private[this] var config: OpenAPIConfiguration = new SwaggerConfiguration().openAPI(api)
+  private[this] val tags = scala.collection.mutable.Set.empty[Tag]
   api.setComponents(components)
+  api.setPaths(paths)
 
   import StringUtils._
 
-  def read(classes: List[Class[_]]): Unit = {
+  override def setConfiguration(openApiConfiguration: OpenAPIConfiguration): Unit = {
+    if (openApiConfiguration != null) {
+      config = ContextUtils.deepCopy(openApiConfiguration)
+      if (openApiConfiguration.getOpenAPI != null) {
+        api = config.getOpenAPI
+        if (api.getComponents != null) {
+          components = api.getComponents
+        } else {
+          api.setComponents(components)
+        }
+
+        if (api.getPaths != null) {
+          paths = api.getPaths
+        } else {
+          api.setPaths(paths)
+        }
+      }
+    }
+  }
+
+  override def read(classes: util.Set[Class[_]], resources: util.Map[String, AnyRef]): OpenAPI = read(classes.asScala.toList)
+
+  def read(classes: List[Class[_]]): OpenAPI = {
     // process SwaggerDefinitions first - so we get tags in desired order
     for (cls <- classes) {
       val definition = ReflectionUtils.getAnnotation(cls, classOf[io.swagger.v3.oas.annotations.OpenAPIDefinition])
@@ -61,31 +86,35 @@ class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig)
       }
     }
 
+    implicit val apiServers: List[Server] =
+      Option(api.getServers)
+        .map(_.asScala.toList)
+        .getOrElse(List.empty[Server])
+
     for (cls <- classes) {
       read(cls)
     }
+
+    api.setTags(tags.toList.asJava)
+    api
   }
 
-  def read(cls: Class[_]): Unit = read(cls, readHidden = false)
-
-  def read(cls: Class[_], readHidden: Boolean): Unit = {
+  def read(cls: Class[_])(implicit apiServers: List[Server]): Unit = {
     val hidden = ReflectionUtils.getAnnotation(cls, classOf[io.swagger.v3.oas.annotations.Hidden])
 
-    //val tags = scala.collection.mutable.Map.empty[String, Tag]
     //val securities = ListBuffer.empty[SecurityRequirement]
     //var consumes = new Array[String](0)
     //var produces = new Array[String](0)
     //val globalSchemes = scala.collection.mutable.Set.empty[Schemes]
 
     //val readable = (api != null && readHidden) || (api != null && !api.hidden())
-    val readable = readHidden || hidden == null
 
     // TODO possibly allow parsing also without @Api annotation
-    if (!readable) {
+    if (hidden != null) {
       return
     }
 
-    // Class Response
+    // Response
 
     // SecurityScheme
 
@@ -96,15 +125,25 @@ class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig)
     // Tags
 
     // Servers
+    val serverAnnotations = ReflectionUtils.getRepeatableAnnotationsArray(cls, classOf[io.swagger.v3.oas.annotations.servers.Server])
+    val classServers: List[Server] = apiServers ++ {
+      if (serverAnnotations != null) {
+        AnnotationsUtils.getServers(serverAnnotations)
+          .toOption
+          .map(_.asScala.toList)
+          .getOrElse(List.empty[Server])
+      } else List.empty[Server]
+    }
 
     // parse the method
     val methods = cls.getMethods
     for (method <- methods) {
-      readMethod(cls, method, api: OpenAPI)
+      readMethod(cls, method)(classServers)
     }
   }
 
-  private def readMethod(cls: Class[_], method: Method, api: OpenAPI): Unit = {
+  private def readMethod(cls: Class[_], method: Method)
+                        (implicit classServers: List[Server]): Unit = {
     if (ReflectionUtils.isOverriddenMethod(method, cls)) return
 
     // complete name as stored in route
@@ -113,7 +152,18 @@ class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig)
     if (!routes.exists(fullMethodName)) return
 
     val route = routes(fullMethodName)
-    val operationPath = getPathFromRoute(route.path, config.basePath)
+    //val operationPath = getPathFromRoute(route.path, config.basePath)
+
+    println("Servers: " + classServers.size)
+
+    val basePath =
+      if (classServers.isEmpty) {
+        "/"
+      } else {
+        classServers(0).getUrl
+      }
+
+    val operationPath = getPathFromRoute(route.path, basePath)
     if (operationPath == null) return
 
     val apiOperation = ReflectionUtils.getAnnotation(method, classOf[io.swagger.v3.oas.annotations.Operation])
@@ -125,11 +175,11 @@ class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig)
     val operation = parseMethod(cls, method, route, apiOperation)
 
     val path: PathItem =
-      if (api.getPaths != null && api.getPaths.containsKey(operationPath)) {
-        api.getPaths.get(operationPath)
+      if (paths.containsKey(operationPath)) {
+        paths.get(operationPath)
       } else {
         val path = new PathItem()
-        api.path(operationPath, path)
+        paths.addPathItem(operationPath, path)
         path
       }
 
@@ -404,7 +454,8 @@ class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig)
     null
   }
 
-  private def parseMethod(cls: Class[_], method: Method, route: Route, annotation: io.swagger.v3.oas.annotations.Operation): Operation = {
+  private def parseMethod(cls: Class[_], method: Method, route: Route, annotation: io.swagger.v3.oas.annotations.Operation)
+                         (implicit classServers: List[Server]): Operation = {
     val hidden = ReflectionUtils.getAnnotation(method, classOf[io.swagger.v3.oas.annotations.Hidden])
     if (hidden != null) {
       return null
@@ -477,6 +528,15 @@ class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig)
     // Callbacks
 
     // Servers
+    classServers.foreach(operation.addServersItem)
+
+    val serverAnnotations = ReflectionUtils.getRepeatableAnnotations(method, classOf[io.swagger.v3.oas.annotations.servers.Server])
+    if (serverAnnotations != null){
+      val array = serverAnnotations.asScala.toArray[io.swagger.v3.oas.annotations.servers.Server]
+      AnnotationsUtils.getServers(array)
+        .toOption
+        .foreach(list => list.asScala.foreach(operation.addServersItem))
+    }
 
     // Tags
 
@@ -513,6 +573,14 @@ class PlayReader (api: OpenAPI, routes: RouteWrapper, config: PlaySwaggerConfig)
     }
 
     // ExternalDocumentation
+    val docAnnotations = ReflectionUtils.getRepeatableAnnotations(method, classOf[io.swagger.v3.oas.annotations.ExternalDocumentation])
+    if (docAnnotations != null){
+      docAnnotations.asScala.foreach(annotation => {
+        AnnotationsUtils.getExternalDocumentation(annotation)
+          .toOption
+          .foreach(operation.setExternalDocs)
+      })
+    }
 
     if (responses.isEmpty) {
       val response = new ApiResponse()

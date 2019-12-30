@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.media._
 import io.swagger.v3.oas.annotations.parameters.RequestBody
 import io.swagger.v3.oas.annotations.responses._
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
+import io.swagger.v3.oas.annotations.servers.Server
 
 import scala.concurrent.Future
 import play.api.mvc.InjectedController
@@ -23,6 +24,7 @@ import play.api.mvc.InjectedController
 //    ))
 //  )
 //)
+@Server(url = "/api", description = "look after the dogs")
 object DogController extends InjectedController {
 
   @Operation(

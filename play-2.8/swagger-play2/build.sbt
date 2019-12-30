@@ -1,5 +1,5 @@
 name := "swagger-play2"
-version := "1.8.0-SNAPSHOT"
+version := "2.0.0-SNAPSHOT"
 
 checksums in update := Nil
 
@@ -14,7 +14,7 @@ libraryDependencies ++= Seq(
   "io.swagger.core.v3" % "swagger-jaxrs2"             % "2.1.0",
   "javax.ws.rs" % "javax.ws.rs-api" % "2.1.1",
   //"io.swagger"        %% "swagger-scala-module"       % "1.0.6",
-  //"com.github.swagger-akka-http" %% "swagger-scala-module" % "2.0.0",
+  "com.github.swagger-akka-http" %% "swagger-scala-module" % "2.0.5",
   "com.typesafe.play" %% "routes-compiler"            % "2.8.0",
   "com.typesafe.play" %% "play-ebean"                 % "5.0.2"            % "test",
   "org.specs2"        %% "specs2-core"                % "4.8.1"            % "test",
@@ -22,7 +22,7 @@ libraryDependencies ++= Seq(
   "org.specs2"        %% "specs2-junit"               % "4.8.1"            % "test",
   "org.mockito"        % "mockito-core"               % "3.2.0"            % "test")
 
-mappings in (Compile, packageBin) ~= { _.filter(!_._1.getName.equals("logback.xml")) }
+mappings in (Compile, packageBin) ~= { _.filter(!_._1.getName.equals("logback-test.xml")) }
 
 //publishTo <<= version { (v: String) =>
 //  val nexus = "https://oss.sonatype.org/"

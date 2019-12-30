@@ -4,10 +4,12 @@ import io.swagger.v3.oas.annotations._
 import io.swagger.v3.oas.annotations.enums.ParameterIn
 import io.swagger.v3.oas.annotations.media._
 import io.swagger.v3.oas.annotations.responses._
+import io.swagger.v3.oas.annotations.servers.Server
 import play.mvc.{Http, Result}
 import play.api.mvc.InjectedController
 
 // @Api(value = "/apitest/pointsofinterest", description = "Points of interest")
+@Server(url = "/api")
 class PointOfInterestController extends InjectedController {
   @Operation(
     summary = "Get points of interest",

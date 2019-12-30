@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.*;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.responses.*;
+import io.swagger.v3.oas.annotations.servers.Server;
 import play.mvc.Controller;
 import play.mvc.Http;
 import play.mvc.Http.Request;
@@ -15,6 +16,7 @@ import play.mvc.Result;
 import java.util.List;
 
 // @Api(value = "/apitest/search", tags = { "Search" })
+@Server(url = "/api")
 public class SettlementsSearcherController extends Controller {
     
     @Operation(

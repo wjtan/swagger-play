@@ -1,13 +1,13 @@
 package play.modules.swagger
 
-import javax.inject.{Inject, Singleton}
+import javax.inject.{Inject, Provider, Singleton}
 import io.swagger.v3.oas.models.OpenAPI
 
 import scala.jdk.CollectionConverters._
 import com.typesafe.scalalogging._
 
 @Singleton
-class ApiListingCache @Inject() (readerProvider: PlayReaderProvider, scanner: PlayApiScanner) {
+class ApiListingCache @Inject() (readerProvider: Provider[PlayReader], scanner: PlayApiScanner) {
   private[this] val logger = Logger[ApiListingCache]
 
   var cache: Option[OpenAPI] = None
@@ -16,14 +16,12 @@ class ApiListingCache @Inject() (readerProvider: PlayReaderProvider, scanner: Pl
     cache.orElse {
       logger.debug("Loading API metadata")
 
-      val api = new OpenAPI()
-
       //val scanner = ScannerFactory.getScanner()
-      scanner.updateInfoFromConfig(api)
+      //scanner.updateInfoFromConfig(api) // FIXME
 
       val classes = scanner.classes().asScala.toList
-      val reader = readerProvider.get(api)
-      reader.read(classes)
+      val reader = readerProvider.get()
+      val api: OpenAPI = reader.read(classes)
 
       //scanner match {
       //  case config: SwaggerConfig => {

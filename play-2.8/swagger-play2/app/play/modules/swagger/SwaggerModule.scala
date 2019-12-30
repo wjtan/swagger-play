@@ -11,7 +11,7 @@ class SwaggerModule extends Module {
     //bind[OpenAPI].to(new OpenAPI()),
     bind[RouteWrapper].toProvider[RouteProvider],
     bind[PlaySwaggerConfig].toProvider[PlaySwaggerConfigProvider],
-    bind[PlayReaderProvider].toSelf,
+    bind[PlayReader].toSelf,
     bind[PlayApiScanner].toSelf,
     bind[ApiListingCache].toSelf,
 
