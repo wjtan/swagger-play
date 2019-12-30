@@ -7,10 +7,10 @@ import java.util
 import java.util.regex.Pattern
 
 import javax.inject.Inject
-import javax.inject.Singleton
 
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
+
 import org.apache.commons.lang3.StringUtils
 import com.typesafe.scalalogging._
 import io.swagger.v3.oas.annotations.{Operation => ApiOperation}
@@ -18,10 +18,6 @@ import io.swagger.v3.core.converter.{AnnotatedType, ModelConverters}
 import io.swagger.v3.core.util.AnnotationsUtils
 import io.swagger.v3.jaxrs2.{OperationParser, SecurityParser}
 import io.swagger.v3.oas.models._
-import io.swagger.v3.oas.models.examples.Example
-import io.swagger.v3.oas.models.headers._
-import io.swagger.v3.oas.models.info._
-import io.swagger.v3.oas.models.links.Link
 import io.swagger.v3.oas.models.tags.Tag
 import io.swagger.v3.oas.models.media._
 import io.swagger.v3.oas.models.parameters._
@@ -272,72 +268,6 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
     if (annotation.extensions.length > 0) {
       api.setExtensions(AnnotationsUtils.getExtensions(annotation.extensions():_*))
     }
-  }
-
-  //  private def readImplicitParameters(method: Method, operation: Operation, cls: Class[_]): Unit = {
-  //      val implicitParams = method.getAnnotation(classOf[ApiImplicitParams])
-  //      if (implicitParams != null && implicitParams.value.length > 0) {
-  //          for (param <- implicitParams.value()) {
-  //              val p = readImplicitParam(param, cls)
-  //              if (p != null) {
-  //                  operation.addParameter(p)
-  //              }
-  //          }
-  //      }
-  //  }
-
-  //  private def readImplicitParam(param: ApiImplicitParam, cls: Class[_]): ApiParameter = {
-  //      val p: Parameter =
-  //        if (param.paramType.equalsIgnoreCase("path")) {
-  //            new PathParameter()
-  //        } else if (param.paramType.equalsIgnoreCase("query")) {
-  //            new QueryParameter()
-  //        } else if (param.paramType.equalsIgnoreCase("form") || param.paramType.equalsIgnoreCase("formData")) {
-  //            new FormParameter()
-  //        } else if (param.paramType.equalsIgnoreCase("body")) {
-  //            null
-  //        } else if (param.paramType.equalsIgnoreCase("header")) {
-  //            new HeaderParameter()
-  //        } else {
-  //            logger.warn("Unkown implicit parameter type: [" + param.paramType() + "]")
-  //            return null
-  //        }
-  //
-  //      val t: Type =
-  //      // Swagger ReflectionUtils can't handle file or array datatype
-  //        if (!"".equalsIgnoreCase(param.dataType()) && !"file".equalsIgnoreCase(param.dataType()) && !"array".equalsIgnoreCase(param.dataType())) {
-  //          typeFromString(param.dataType(), cls)
-  //        } else {
-  //          classOf[String]
-  //        }
-  //
-  //      val result = ParameterProcessor.applyAnnotations(swagger, p, t, java.util.Collections.singletonList(param))
-  //
-  //      if (result.isInstanceOf[AbstractSerializableParameter[_]] && t != null) {
-  //          val schema = createSchema(t)
-  //          p.asInstanceOf[AbstractSerializableParameter[_]].setProperty(schema)
-  //      }
-  //
-  //      result
-  //  }
-
-  private def typeFromString(t: String, cls: Class[_]): Type = {
-    val primitive = PrimitiveType.fromName(t)
-    if (primitive != null) {
-      return primitive.getKeyClass
-    }
-    try {
-      val routeType = getOptionTypeFromString(t, cls)
-
-      if (routeType != null) {
-        return routeType
-      }
-
-      return Thread.currentThread.getContextClassLoader.loadClass(t)
-    } catch {
-      case e: Exception => logger.error(s"Failed to resolve '$t' into class", e)
-    }
-    null
   }
 
   private def parseMethod(cls: Class[_], method: Method, route: Route, annotation: io.swagger.v3.oas.annotations.Operation)
@@ -612,17 +542,6 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
     (annotation.name(), callbackObject)
   }
 
-  private val primitiveTypes: Map[String, Class[_]] = Map(
-    "Int" -> classOf[java.lang.Integer],
-    "Long" -> classOf[java.lang.Long],
-    "Byte" -> classOf[java.lang.Byte],
-    "Boolean" -> classOf[java.lang.Boolean],
-    "Char" -> classOf[java.lang.Character],
-    "Float" -> classOf[java.lang.Float],
-    "Double" -> classOf[java.lang.Double],
-    "Short" -> classOf[java.lang.Short],
-  )
-
   private def getOptionTypeFromString(simpleTypeName: String, cls: Class[_]): Type = {
     if (simpleTypeName == null) {
       return null
@@ -781,40 +700,6 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
       Option.empty
     }
   }
-
-//  private def appendModels(t: Type): Unit = {
-//    val models = modelConverters.readAll(t)
-//    for ((modelName, model) <- models.asScala) {
-//      api.schema(modelName, model)
-//    }
-//  }
-
-  //  private def parseResponseHeaders(headers: Array[io.swagger.v3.oas.annotations.headers.Header]): Map[String, Schema[_]] = {
-  //      val responseHeaders = scala.collection.mutable.Map.empty[String, Schema[_]]
-  //      if (headers != null && headers.length > 0) {
-  //          for (header <- headers) {
-  //              val name = header.name()
-  //              if (!isEmpty(name)) {
-  //                  val description = header.description()
-  //                  val cls = header.response()
-  //
-  //                  if (!isVoid(cls)) {
-  //                      val property = modelConverters.readAllAsResolvedSchema(cls)
-  //                      if (property != null) {
-  //                          val responseProperty = wrapContainer(header.responseContainer(), property,
-  //                                                               ContainerWrapper.ARRAY,
-  //                                                               ContainerWrapper.LIST,
-  //                                                               ContainerWrapper.SET)
-  //                          responseProperty.setDescription(description)
-  //                          responseHeaders.put(name, responseProperty)
-  //                          appendModels(cls)
-  //                      }
-  //                  }
-  //              }
-  //          }
-  //      }
-  //      responseHeaders.toMap
-  //  }
 
   private def getFullMethodName(clazz: Class[_], method: Method): String = {
     if (!clazz.getCanonicalName.contains("$")) {
