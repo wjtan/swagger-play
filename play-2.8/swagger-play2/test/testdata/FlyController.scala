@@ -1,7 +1,9 @@
 package testdata
 
+import io.swagger.v3.oas.annotations.Hidden
 import play.api.mvc.InjectedController
 
+@Hidden
 class FlyController extends InjectedController {
 
   def list = Action {

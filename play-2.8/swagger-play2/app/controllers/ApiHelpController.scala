@@ -65,7 +65,7 @@ class ErrorResponse(@XmlElement var code: Int, @XmlElement var message: String) 
   def setMessage(message: String) = this.message = message
 }
 
-class ApiHelpController @Inject() (cc: ControllerComponents, cache: ApiListingCache) extends SwaggerBaseApiController(cc, cache) {
+class ApiHelpController @Inject() (ctx: SwaggerContext, cc: ControllerComponents, cache: ApiListingCache) extends SwaggerBaseApiController(ctx, cc, cache) {
   def getResources = Action {
     request =>
       implicit val requestHeader: RequestHeader = request
@@ -101,7 +101,7 @@ class ApiHelpController @Inject() (cc: ControllerComponents, cache: ApiListingCa
   }
 }
 
-class SwaggerBaseApiController @Inject() (cc: ControllerComponents, cache: ApiListingCache) extends AbstractController(cc)  {
+class SwaggerBaseApiController @Inject() (ctx: SwaggerContext, cc: ControllerComponents, cache: ApiListingCache) extends AbstractController(cc)  {
   val logger = LoggerFactory.getLogger("play.modules.swagger")
 
   protected def returnXml(request: Request[_]) = request.path.contains(".xml")
@@ -132,7 +132,7 @@ class SwaggerBaseApiController @Inject() (cc: ControllerComponents, cache: ApiLi
       case _ => new OpenAPI()
     }
 
-    val hasFilter = SwaggerContext.filter
+    val hasFilter = ctx.filter
     hasFilter match {
       case Some(f) => filter.filter(specs, f, queryParams.asJava, cookies.asJava, headers.asJava)
       case None => specs
@@ -157,7 +157,7 @@ class SwaggerBaseApiController @Inject() (cc: ControllerComponents, cache: ApiLi
       case Some(m) => m
       case _ => new OpenAPI()
     }
-    val hasFilter = SwaggerContext.filter
+    val hasFilter = ctx.filter
 
     val clone = hasFilter match {
       case Some(f) => filter.filter(specs, f, queryParams.asJava, cookies, headers.asJava)

@@ -31,7 +31,7 @@ import io.swagger.v3.core.filter.OpenAPISpecFilter
 trait SwaggerPlugin
 
 class SwaggerPluginImpl @Inject() (lifecycle: ApplicationLifecycle, app: Application,
-    cache: ApiListingCache, scanner: PlayApiScanner) extends SwaggerPlugin {
+                                   ctx: SwaggerContext, cache: ApiListingCache, scanner: PlayApiScanner) extends SwaggerPlugin {
 
   import StringUtils._
 
@@ -39,7 +39,7 @@ class SwaggerPluginImpl @Inject() (lifecycle: ApplicationLifecycle, app: Applica
 
   logger.debug("Swagger - starting initialisation...")
 
-  SwaggerContext.registerClassLoader(app.classloader)
+  ctx.registerClassLoader(app.classloader)
 
   // ScannerFactory.setScanner(scanner)
 
@@ -50,7 +50,7 @@ class SwaggerPluginImpl @Inject() (lifecycle: ApplicationLifecycle, app: Applica
       case value if isEmpty(value) =>
       case e => {
         try {
-          SwaggerContext.registerFilter(SwaggerContext.loadClass(e).newInstance.asInstanceOf[OpenAPISpecFilter])
+          ctx.registerFilter(ctx.loadClass(e).newInstance.asInstanceOf[OpenAPISpecFilter])
           logger.debug("Setting swagger.filter to %s".format(e))
         } catch {
           case ex: Exception => logger.error(s"Failed to load filter $e", ex)

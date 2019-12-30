@@ -15,6 +15,7 @@ import org.specs2.runner.JUnitRunner
 
 import scala.jdk.CollectionConverters._
 import org.slf4j.LoggerFactory
+import play.modules.swagger.util.SwaggerContext
 
 @RunWith(classOf[JUnitRunner])
 class PlayApiListingCacheSpec extends Specification with Mockito {
@@ -58,10 +59,10 @@ PUT /api/dog/:id testdata.DogController.add0(id:String)
     license = "license",
     licenseUrl = "http://licenseUrl")
 
+  val ctx = new SwaggerContext
   val route = new RouteWrapper(routesRules)
-  val scanner = new PlayApiScanner(swaggerConfig, route)
+  val scanner = new PlayApiScanner(ctx, swaggerConfig, route)
   val reader = new PlayReader(route)
-  // val reader = new PlayReader(swagger, route, swaggerConfig)
 
   "ApiListingCache" should {
 

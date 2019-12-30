@@ -7,6 +7,7 @@ import java.util
 
 import org.apache.commons.lang3.StringUtils
 import com.typesafe.scalalogging._
+import io.swagger.v3.oas.annotations.Hidden
 import io.swagger.v3.oas.integration.SwaggerConfiguration
 import io.swagger.v3.oas.integration.api.{OpenAPIConfiguration, OpenApiScanner}
 import io.swagger.v3.oas.models.OpenAPI
@@ -20,7 +21,7 @@ import javax.inject.Inject
  * Identifies Play Controllers annotated as Swagger API's.
  * Uses the Play Router to identify Controllers, and then tests each for the API annotation.
  */
-class PlayApiScanner @Inject() (playSwaggerConfig: PlaySwaggerConfig, route: RouteWrapper) extends OpenApiScanner {
+class PlayApiScanner @Inject() (ctx: SwaggerContext, playSwaggerConfig: PlaySwaggerConfig, route: RouteWrapper) extends OpenApiScanner {
   private[this] val logger = Logger[PlayApiScanner]
   private[this] var config: OpenAPIConfiguration = new SwaggerConfiguration()
 
@@ -93,7 +94,22 @@ class PlayApiScanner @Inject() (playSwaggerConfig: PlaySwaggerConfig, route: Rou
         controllers.filter(cls => isAcceptable(cls))
       }
 
-    val list = filterControllers.map(SwaggerContext.loadClass)
+    // Do not load hidden class
+    val list = filterControllers.collect {
+      case className: String if {
+        try {
+          ctx.loadClass(className).getAnnotation(classOf[Hidden]) == null
+        } catch {
+          case ex: Exception => {
+            logger.error("Problem loading class:  %s. %s: %s".format(className, ex.getClass.getName, ex.getMessage))
+            false
+          }
+        }
+      } =>
+        logger.debug("Found API controller:  %s".format(className))
+        ctx.loadClass(className)
+    }
+
     list.toSet.asJava
   }
 

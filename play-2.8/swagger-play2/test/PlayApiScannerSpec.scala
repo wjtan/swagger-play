@@ -29,16 +29,17 @@ PUT /api/dog/:id testdata.DogController.add0(id:String)
     }
   }
 
+  val ctx = new SwaggerContext
   val routesRules = RouteProvider.buildRouteRules(routesList) 
   val route = new RouteWrapper(routesRules)
 
   "PlayApiScanner" should {
     "identify correct API classes based on router and API annotations" in {
-      val classes = new PlayApiScanner(PlaySwaggerConfig(), route).classes()
+      val classes = new PlayApiScanner(ctx, PlaySwaggerConfig(), route).classes()
 
       classes.asScala.toList.length must beEqualTo(2)
-      classes.contains(SwaggerContext.loadClass("testdata.DogController")) must beTrue
-      classes.contains(SwaggerContext.loadClass("testdata.CatController")) must beTrue
+      classes.contains(ctx.loadClass("testdata.DogController")) must beTrue
+      classes.contains(ctx.loadClass("testdata.CatController")) must beTrue
     }
   }
 

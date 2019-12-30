@@ -1,6 +1,7 @@
 package play.modules.swagger.util
 
 import io.swagger.v3.core.filter.OpenAPISpecFilter
+import javax.inject.Singleton
 
 import collection.mutable.ListBuffer
 import org.slf4j.{Logger, LoggerFactory}
@@ -10,7 +11,9 @@ import org.slf4j.{Logger, LoggerFactory}
   * @since 10/9/11 5:36 PM
   *
   */
-object SwaggerContext {
+
+@Singleton
+class SwaggerContext {
   private val LOGGER = LoggerFactory.getLogger("play.modules.swagger.util.SwaggerContext")
 
   var suffixResponseFormat = true
