@@ -7,6 +7,7 @@ import java.util
 
 import org.apache.commons.lang3.StringUtils
 import com.typesafe.scalalogging._
+import io.swagger.v3.oas.integration.SwaggerConfiguration
 import io.swagger.v3.oas.integration.api.{OpenAPIConfiguration, OpenApiScanner}
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.info.{Contact, Info, License}
@@ -21,6 +22,7 @@ import javax.inject.Inject
  */
 class PlayApiScanner @Inject() (playSwaggerConfig: PlaySwaggerConfig, route: RouteWrapper) extends OpenApiScanner {
   private[this] val logger = Logger[PlayApiScanner]
+  private[this] var config: OpenAPIConfiguration = new SwaggerConfiguration()
 
   def updateInfoFromConfig(api: OpenAPI): Unit = {
     val info = new Info()
@@ -62,7 +64,9 @@ class PlayApiScanner @Inject() (playSwaggerConfig: PlaySwaggerConfig, route: Rou
     //}
     //updateInfoFromConfig()
     //swagger.host(playSwaggerConfig.host)
-    //swagger.basePath(playSwaggerConfig.basePath);
+    //swagger.basePath(playSwaggerConfig.basePath)
+
+    this.config = config
   }
 
   override def classes(): java.util.Set[Class[_]] = {
@@ -80,25 +84,26 @@ class PlayApiScanner @Inject() (playSwaggerConfig: PlaySwaggerConfig, route: Rou
         }
     }.distinct
 
-//    val list = controllers.collect {
-//      case className: String if {
-//        try {
-//          // FIXME Check annotation
-//          //SwaggerContext.loadClass(className).getAnnotation(classOf[Api]) != null
-//          true
-//        } catch {
-//          case ex: Exception => {
-//            logger.error("Problem loading class:  %s. %s: %s".format(className, ex.getClass.getName, ex.getMessage))
-//            false
-//          }
-//        }
-//      } =>
-//        logger.debug("Found API controller:  %s".format(className))
-//        SwaggerContext.loadClass(className)
-//    }
+    implicit val acceptablePackges = Option(config.getResourcePackages).map(_.asScala.toSet).getOrElse(Set.empty[String])
 
-    val list = controllers.map(SwaggerContext.loadClass)
+    val filterControllers: List[String] =
+      if (acceptablePackges.isEmpty) {
+        controllers
+      } else {
+        controllers.filter(cls => isAcceptable(cls))
+      }
+
+    val list = filterControllers.map(SwaggerContext.loadClass)
     list.toSet.asJava
+  }
+
+  private def isAcceptable(cls: String)(implicit acceptablePackges: Set[String]): Boolean = {
+    for(pkg <- acceptablePackges) {
+      if (cls.startsWith(pkg)) {
+        return true
+      }
+    }
+    false
   }
 
   override def resources(): util.Map[String, AnyRef] = Map.empty[String, AnyRef].asJava
