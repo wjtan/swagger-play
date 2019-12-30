@@ -91,19 +91,26 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
         .map(_.asScala.toList)
         .getOrElse(List.empty[Server])
 
+    implicit val apiSecurity: List[SecurityRequirement] =
+      Option(api.getSecurity)
+        .map(_.asScala.toList)
+        .getOrElse(List.empty[SecurityRequirement])
+
+    implicit val apiDocs = Option(api.getExternalDocs)
+
     for (cls <- classes) {
-      read(cls)
+      readClass(cls)
     }
 
     api.setTags(tags.toList.asJava)
     api
   }
 
-  def read(cls: Class[_])(implicit apiServers: List[Server]): Unit = {
+  def readClass(cls: Class[_])
+               (implicit apiServers: List[Server],
+                apiSecurity: List[SecurityRequirement],
+                apiDocs: Option[ExternalDocumentation]): Unit = {
     val hidden = ReflectionUtils.getAnnotation(cls, classOf[io.swagger.v3.oas.annotations.Hidden])
-
-    //val securities = ListBuffer.empty[SecurityRequirement]
-    //val globalSchemes = scala.collection.mutable.Set.empty[Schemes]
 
     if (hidden != null) {
       return
@@ -131,20 +138,25 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
 
     // SecurityRequirement
     val securityRequirementAnnotations = ReflectionUtils.getRepeatableAnnotationsArray(cls, classOf[io.swagger.v3.oas.annotations.security.SecurityRequirement])
-    val classSecurityRequirements: List[SecurityRequirement] =
-      if (securityRequirementAnnotations != null && !securityRequirementAnnotations.isEmpty) {
+    val classSecurityRequirements: List[SecurityRequirement] = apiSecurity ++ {
+      if (securityRequirementAnnotations != null && securityRequirementAnnotations.nonEmpty) {
         SecurityParser.getSecurityRequirements(securityRequirementAnnotations)
           .toOption
           .map(_.asScala.toList)
           .getOrElse(List.empty[SecurityRequirement])
       } else List.empty[SecurityRequirement]
+    }
 
     // ExternalDocs
+    val docAnnotation = ReflectionUtils.getAnnotation(cls, classOf[io.swagger.v3.oas.annotations.ExternalDocumentation])
+    val classDocs: Option[ExternalDocumentation] = Option(docAnnotation).flatMap(annotation => {
+      AnnotationsUtils.getExternalDocumentation(annotation).toOption
+    }) orElse apiDocs
 
     // Tags
     val tagAnnotations = ReflectionUtils.getRepeatableAnnotationsArray(cls, classOf[io.swagger.v3.oas.annotations.tags.Tag])
     val classTags: Set[Tag] =
-      if (tagAnnotations != null && !tagAnnotations.isEmpty) {
+      if (tagAnnotations != null && tagAnnotations.nonEmpty) {
         AnnotationsUtils.getTags(tagAnnotations, false)
           .toOption
           .map(_.asScala.toSet)
@@ -169,7 +181,7 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
     // parse the method
     val methods = cls.getMethods
     for (method <- methods) {
-      readMethod(cls, method)(classServers, classTags, classResponses, classSecurityRequirements)
+      readMethod(cls, method)(classServers, classTags, classResponses, classSecurityRequirements, classDocs)
     }
   }
 
@@ -177,7 +189,8 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
                         (implicit classServers: List[Server],
                                   classTags: Set[Tag],
                                   classResponses: Array[io.swagger.v3.oas.annotations.responses.ApiResponse],
-                                  classSecurityRequirements: List[SecurityRequirement]): Unit = {
+                                  classSecurityRequirements: List[SecurityRequirement],
+                                  classDocs: Option[ExternalDocumentation]): Unit = {
     if (ReflectionUtils.isOverriddenMethod(method, cls)) return
 
     // complete name as stored in route
@@ -217,27 +230,6 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
     path.operation(httpMethod, operation)
   }
 
-  //                      for (scheme <- parseSchemes(apiOperation.protocols())) {
-  //                          operation.scheme(scheme)
-  //                      }
-  //                  }
-  //
-  //                  if (operation.getSchemes == null || operation.getSchemes.isEmpty) {
-  //                      for (scheme <- globalSchemes) {
-  //                          operation.scheme(scheme)
-  //                      }
-  //                  }
-  //                  // can't continue without a valid http method
-  //                  if (httpMethod != null) {
-  //                      if (apiOperation != null) {
-  //                          for (tag <- apiOperation.tags) {
-  //                              if (!"".equals(tag)) {
-  //                                  operation.tag(tag)
-  //                                  swagger.tag(new Tag().name(tag))
-  //                              }tags
-  //                          }
-
-
   private def getPathFromRoute(pathPattern: PathPattern, basePath: String): String = {
     val sb = new StringBuilder()
     val iter = pathPattern.parts.iterator
@@ -268,70 +260,6 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
     operationPath.toString
   }
 
-  //  private def readSwaggerConfig(config: OpenAPIDefinition): Unit = {
-  //      //if (!isEmpty(config.basePath())) {
-  //      //    swagger.setBasePath(config.basePath())
-  //      //}
-  //
-  //      if (!isEmpty(config.host())) {
-  //          swagger.setHost(config.host())
-  //      }
-  //
-  //      readInfoConfig(config)
-  //
-  //      for ( consume <- config.consumes()) {
-  //          if (StringUtils.isNotEmpty(consume)) {
-  //              swagger.addConsumes(consume)
-  //          }
-  //      }
-  //
-  //      for ( produce <- config.produces()) {
-  //          if (StringUtils.isNotEmpty(produce)) {
-  //              swagger.addProduces(produce)
-  //          }
-  //      }
-  //
-  //      if (!isEmpty(config.externalDocs.value())) {
-  //          val externalDocs: ExternalDocs =
-  //            if(swagger.getExternalDocs != null){
-  //              swagger.getExternalDocs
-  //            } else {
-  //                val newExternalDocs = new ExternalDocs
-  //                swagger.setExternalDocs(newExternalDocs)
-  //                newExternalDocs
-  //            }
-  //
-  //          externalDocs.setDescription(config.externalDocs.value)
-  //
-  //          if (!isEmpty(config.externalDocs.url)) {
-  //              externalDocs.setUrl(config.externalDocs.url)
-  //          }
-  //      }
-  //
-  //      for (tagConfig <- config.tags()) {
-  //          if (!isEmpty(tagConfig.name())) {
-  //              val tag = new Tag()
-  //              tag.setName(tagConfig.name)
-  //              tag.setDescription(tagConfig.description)
-  //
-  //              if (!isEmpty(tagConfig.externalDocs.value)) {
-  //                  tag.setExternalDocs(new ExternalDocs(tagConfig.externalDocs.value,
-  //                                                       tagConfig.externalDocs.url))
-  //              }
-  //
-  //              tag.getVendorExtensions.putAll(BaseReaderUtils.parseExtensions(tagConfig.extensions))
-  //tags
-  //              swagger.addTag(tag)
-  //          }
-  //      }
-  //
-  //      for (scheme <- config.schemes()) {
-  //          if (scheme != SwaggerDefinition.Scheme.DEFAULT) {
-  //              swagger.addScheme(Scheme.forValue(scheme.name()))
-  //          }
-  //      }
-  //  }
-
   private def parseApiDefinition(annotation: io.swagger.v3.oas.annotations.OpenAPIDefinition): Unit = {
     AnnotationsUtils.getInfo(annotation.info).toOption.foreach(api.setInfo)
     SecurityParser.getSecurityRequirements(annotation.security).toOption.foreach(api.setSecurity)
@@ -344,79 +272,6 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
       api.setExtensions(AnnotationsUtils.getExtensions(annotation.extensions():_*))
     }
   }
-
-  private def parseOAuthFlows(annotation: io.swagger.v3.oas.annotations.security.OAuthFlows): Option[OAuthFlows] =
-    SecurityParser.getOAuthFlows(annotation).toOption
-
-  private def parseOAuthFlow(annotation: io.swagger.v3.oas.annotations.security.OAuthFlow): Option[OAuthFlow] =
-    SecurityParser.getOAuthFlow(annotation).toOption
-
-  /*
-  private def readInfoConfig(config: SwaggerDefinition): Unit = {
-      val infoConfig = config.info()
-      val info: io.swagger.models.Info =
-        if (swagger.getInfo != null) {
-          swagger.getInfo
-        } else {
-            val newInfo = new io.swagger.models.Info()
-            swagger.setInfo(newInfo)
-            newInfo
-        }
-
-      if (!isEmpty(infoConfig.description)) {
-          info.setDescription(infoConfig.description)
-      }
-
-      if (!isEmpty(infoConfig.termsOfService)) {
-          info.setTermsOfService(infoConfig.termsOfService)
-      }
-
-      if (!isEmpty(infoConfig.title)) {
-          info.setTitle(infoConfig.title)
-      }
-
-      if (!isEmpty(infoConfig.version)) {
-          info.setVersion(infoConfig.version)
-      }
-
-      if (!isEmpty(infoConfig.contact.name)) {
-          val contact: Contact =
-            if(info.getContact != null){
-              info.getContact
-            } else {
-              val newContact = new Contact()
-              info.setContact(newContact)
-              newContact
-            }
-
-          contact.setName(infoConfig.contact.name)
-          if (!isEmpty(infoConfig.contact.email)) {
-              contact.setEmail(infoConfig.contact.email)
-          }
-
-          if (!isEmpty(infoConfig.contact.url)) {
-              contact.setUrl(infoConfig.contact.url)
-          }
-      }
-
-      if (!isEmpty(infoConfig.license.name)) {
-          val license: io.swagger.models.License =
-            if(info.getLicense != null){
-              info.getLicense
-            } else {
-              val newLicense = new io.swagger.models.License()
-              info.setLicense(newLicense)
-              newLicense
-            }
-
-          license.setName(infoConfig.license.name())
-          if (!isEmpty(infoConfig.license.url())) {
-              license.setUrl(infoConfig.license.url())
-          }
-      }
-
-      info.getVendorExtensions.putAll(BaseReaderUtils.parseExtensions(infoConfig.extensions()))
-  }*/
 
   //  private def readImplicitParameters(method: Method, operation: Operation, cls: Class[_]): Unit = {
   //      val implicitParams = method.getAnnotation(classOf[ApiImplicitParams])
@@ -488,7 +343,8 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
                          (implicit classServers: List[Server],
                                    classTags: Set[Tag],
                                    classResponses: Array[io.swagger.v3.oas.annotations.responses.ApiResponse],
-                                   classSecurityRequirements: List[SecurityRequirement]): Operation = {
+                                   classSecurityRequirements: List[SecurityRequirement],
+                                   classDocs: Option[ExternalDocumentation]): Operation = {
     val hidden = ReflectionUtils.getAnnotation(method, classOf[io.swagger.v3.oas.annotations.Hidden])
     if (hidden != null) {
       return null
@@ -531,7 +387,7 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
       responseAnnotations ++= responseAnnotations2.asScala
     }
 
-    if (!responseAnnotations.isEmpty) {
+    if (responseAnnotations.nonEmpty) {
       val array = responseAnnotations.toArray[io.swagger.v3.oas.annotations.responses.ApiResponse]
       OperationParser.getApiResponses(array, null, null, components, null)
         .toOption
@@ -635,8 +491,13 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
       })
     }
 
+    // Nothing from annotation
+    if (operation.getExternalDocs == null) {
+      classDocs.foreach(operation.setExternalDocs)
+    }
+
     // Extensions
-    if (annotation != null && !annotation.extensions.isEmpty) {
+    if (annotation != null && annotation.extensions.nonEmpty) {
       AnnotationsUtils.getExtensions(annotation.extensions():_*).asScala.foreachEntry((k,v) => operation.addExtension(k, v))
     }
 
@@ -784,17 +645,6 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
     parameters.toList
   }
 
-  //  private def parseSchemes(schemes: String): Set[Scheme] = {
-  //      val result = scala.collection.mutable.Set.empty[Scheme]
-  //      for (item <- trimToEmpty(schemes).split(",")) {
-  //          val scheme = Scheme.forValue(trimToNull(item))
-  //          if (scheme != null) {
-  //              result += scheme
-  //          }
-  //      }
-  //      result.toSet
-  //  }
-
   private def isVoid(t: Type): Boolean = {
     val cls = typeFactory.constructType(t).getRawClass
     classOf[Void].isAssignableFrom(cls) || Void.TYPE.isAssignableFrom(cls)
@@ -819,27 +669,6 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
   }
 
   private def isResourceClass(cls: Class[_]) = cls.getAnnotation(classOf[io.swagger.v3.oas.annotations.media.Schema]) != null
-
-  /*
-  private def extractTags(api: Api): Set[String] = {
-      val output = scala.collection.mutable.Set.empty[String]
-
-      var hasExplicitTags = false
-      for (tag <- api.tags()) {
-          if (!tag.isEmpty) {
-              hasExplicitTags = true
-              output.add(tag)
-          }
-      }
-      if (!hasExplicitTags) {
-          // derive tag from api path + description
-          val tagString = api.value.replace("/", "")
-          if (!tagString.isEmpty) {
-              output.add(tagString)
-          }
-      }
-      output.toSet
-  }*/
 
   private def createSchema(t: Type): Option[Schema[_]] = {
     val resolvedSchema = modelConverters.readAllAsResolvedSchema(new AnnotatedType().`type`(t))
