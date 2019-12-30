@@ -32,6 +32,7 @@ import io.swagger.v3.oas.models.servers._
 import io.swagger.v3.core.util._
 import io.swagger.v3.oas.integration._
 import io.swagger.v3.oas.integration.api._
+import io.swagger.v3.oas.models.callbacks.Callback
 import play.modules.swagger.util.CrossUtil
 import play.modules.swagger.util.JavaOptionals._
 import play.routes.compiler._
@@ -227,7 +228,7 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
         path
       }
 
-    path.operation(httpMethod, operation)
+    operation.foreach(path.operation(httpMethod, _))
   }
 
   private def getPathFromRoute(pathPattern: PathPattern, basePath: String): String = {
@@ -344,10 +345,10 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
                                    classTags: Set[Tag],
                                    classResponses: Array[io.swagger.v3.oas.annotations.responses.ApiResponse],
                                    classSecurityRequirements: List[SecurityRequirement],
-                                   classDocs: Option[ExternalDocumentation]): Operation = {
+                                   classDocs: Option[ExternalDocumentation]): Option[Operation] = {
     val hidden = ReflectionUtils.getAnnotation(method, classOf[io.swagger.v3.oas.annotations.Hidden])
     if (hidden != null) {
-      return null
+      return Option.empty
     }
 
     val operation = new Operation()
@@ -357,7 +358,7 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
 
     if (annotation != null) {
       if (annotation.hidden()) {
-        return null
+        return Option.empty
       }
 
       if (!isEmpty(annotation.operationId)) {
@@ -366,7 +367,6 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
 
       operation
         .summary(annotation.summary)
-        .tags(annotation.tags.toList.asJava)
         .description(annotation.description)
         .deprecated(annotation.deprecated)
     }
@@ -420,19 +420,41 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
     }
 
     // Callbacks
+    val callbackAnnotations = ReflectionUtils.getRepeatableAnnotations(method, classOf[io.swagger.v3.oas.annotations.callbacks.Callback])
+    if (callbackAnnotations != null) {
+      val callbacks = callbackAnnotations.asScala.map(parseCallback).toMap
+      if (callbacks.nonEmpty) {
+        operation.setCallbacks(callbacks.asJava)
+      }
+    }
 
     // Servers
     classServers.foreach(operation.addServersItem)
 
-    val serverAnnotations = ReflectionUtils.getRepeatableAnnotations(method, classOf[io.swagger.v3.oas.annotations.servers.Server])
-    if (serverAnnotations != null){
-      val array = serverAnnotations.asScala.toArray[io.swagger.v3.oas.annotations.servers.Server]
+    // From Operation annotation
+    val serverAnnotations = collection.mutable.ArrayBuffer.empty[io.swagger.v3.oas.annotations.servers.Server]
+    if (annotation != null) {
+      serverAnnotations ++= annotation.servers
+    }
+
+    // From Server annotation
+    val serverAnnotations2 = ReflectionUtils.getRepeatableAnnotations(method, classOf[io.swagger.v3.oas.annotations.servers.Server])
+    if (serverAnnotations2 != null) {
+      serverAnnotations ++= serverAnnotations2.asScala
+    }
+
+    if (!serverAnnotations.isEmpty) {
+      val array = serverAnnotations.toArray[io.swagger.v3.oas.annotations.servers.Server]
       AnnotationsUtils.getServers(array)
         .toOption
         .foreach(list => list.asScala.foreach(operation.addServersItem))
     }
 
     // Tags
+    if (annotation != null) {
+      operation.setTags(annotation.tags.toList.asJava)
+    }
+
     val tagAnnotations = ReflectionUtils.getRepeatableAnnotations(method, classOf[io.swagger.v3.oas.annotations.tags.Tag])
     if (tagAnnotations != null && !tagAnnotations.isEmpty) {
       val array = tagAnnotations.asScala.toArray[io.swagger.v3.oas.annotations.tags.Tag]
@@ -441,7 +463,7 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
           .foreach(set => {
             val scalaSet = set.asScala
             tags ++= scalaSet
-            scalaSet.foreach(tag => operation.addTagsItem(tag.getName()))
+            scalaSet.foreach(tag => operation.addTagsItem(tag.getName))
           })
     }
 
@@ -453,8 +475,9 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
       }
     }
 
-    val routeParameters = getParameters(cls, method, route)
-    routeParameters.foreach(operation.addParametersItem)
+    if (route != null) {
+      getParameters(cls, method, route).foreach(operation.addParametersItem)
+    }
 
     val parametersList = ReflectionUtils.getRepeatableAnnotations(method, classOf[io.swagger.v3.oas.annotations.Parameter])
     if (parametersList != null) {
@@ -506,6 +529,55 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
       response.setDescription(SUCCESSFUL_OPERATION)
       responses.setDefault(response)
     }
+
+    Some(operation)
+  }
+
+  private def parseOperation(annotation: io.swagger.v3.oas.annotations.Operation): Operation = {
+    val operation = new Operation()
+    val responses = new ApiResponses()
+    operation.setResponses(responses)
+
+    operation
+      .operationId(annotation.operationId)
+      .summary(annotation.summary)
+      .description(annotation.description)
+      .deprecated(annotation.deprecated)
+      .tags(annotation.tags.toList.asJava)
+
+    // Responses
+    OperationParser.getApiResponses(annotation.responses, null, null, components, null)
+      .toOption
+      .foreach(responses.putAll)
+
+    // Security
+    SecurityParser.getSecurityRequirements(annotation.security)
+      .toOption
+      .foreach(list => list.asScala.foreach(operation.addSecurityItem))
+
+    // Servers
+    AnnotationsUtils.getServers(annotation.servers)
+      .toOption
+      .foreach(list => list.asScala.foreach(operation.addServersItem))
+
+    // Parameters
+    for (parameterAnnotation <- annotation.parameters) {
+      parseParameter(parameterAnnotation).foreach(operation.addParametersItem)
+    }
+
+    // RequestBody
+    OperationParser.getRequestBody(annotation.requestBody, null, null, components, null)
+      .toOption
+      .foreach(operation.setRequestBody)
+
+    // External Documentation
+    AnnotationsUtils.getExternalDocumentation(annotation.externalDocs).toOption.foreach(operation.setExternalDocs)
+
+    // Extensions
+    if (annotation.extensions.nonEmpty) {
+      AnnotationsUtils.getExtensions(annotation.extensions():_*).asScala.foreachEntry((k,v) => operation.addExtension(k, v))
+    }
+
     operation
   }
 
@@ -521,6 +593,23 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
       null)
 
     Option.apply(processedParameter)
+  }
+
+  private def parseCallback(annotation: io.swagger.v3.oas.annotations.callbacks.Callback): (String, Callback) = {
+    val callbackObject = new Callback();
+    if (isNotBlank(annotation.ref())) {
+      callbackObject.set$ref(annotation.ref());
+      return (annotation.name(), callbackObject)
+    }
+
+    val pathItemObject = new PathItem()
+    for(opAnnotation <- annotation.operation) {
+      val operation = parseOperation(opAnnotation)
+      val method = PathItem.HttpMethod.valueOf(opAnnotation.method.toUpperCase())
+      pathItemObject.operation(method, operation)
+    }
+    callbackObject.addPathItem(annotation.callbackUrlExpression, pathItemObject)
+    (annotation.name(), callbackObject)
   }
 
   private val primitiveTypes: Map[String, Class[_]] = Map(
