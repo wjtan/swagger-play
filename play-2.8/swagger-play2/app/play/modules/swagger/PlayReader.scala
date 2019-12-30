@@ -111,14 +111,33 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
 
     // Response
     val responses = ReflectionUtils.getRepeatableAnnotationsArray(cls, classOf[io.swagger.v3.oas.annotations.responses.ApiResponse])
-    val classResponses =
-      if (responses != null) {
-        responses
-      } else new Array[io.swagger.v3.oas.annotations.responses.ApiResponse](0)
+    val classResponses = Option(responses).getOrElse(new Array[io.swagger.v3.oas.annotations.responses.ApiResponse](0))
 
     // SecurityScheme
+    val securitySchemeAnnotations = ReflectionUtils.getRepeatableAnnotationsArray(cls, classOf[io.swagger.v3.oas.annotations.security.SecurityScheme])
+    if (securitySchemeAnnotations != null) {
+      val securityMap = collection.mutable.Map.empty[String, SecurityScheme]
+      for(securitySchemeAnnotation <- securitySchemeAnnotations) {
+        SecurityParser.getSecurityScheme(securitySchemeAnnotation)
+          .toOption
+          .foreach(pair => {
+            if (isNotBlank(pair.key)) {
+              securityMap += pair.key -> pair.securityScheme
+            }
+          })
+      }
+      components.setSecuritySchemes(securityMap.asJava)
+    }
 
     // SecurityRequirement
+    val securityRequirementAnnotations = ReflectionUtils.getRepeatableAnnotationsArray(cls, classOf[io.swagger.v3.oas.annotations.security.SecurityRequirement])
+    val classSecurityRequirements: List[SecurityRequirement] =
+      if (securityRequirementAnnotations != null && !securityRequirementAnnotations.isEmpty) {
+        SecurityParser.getSecurityRequirements(securityRequirementAnnotations)
+          .toOption
+          .map(_.asScala.toList)
+          .getOrElse(List.empty[SecurityRequirement])
+      } else List.empty[SecurityRequirement]
 
     // ExternalDocs
 
@@ -150,14 +169,15 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
     // parse the method
     val methods = cls.getMethods
     for (method <- methods) {
-      readMethod(cls, method)(classServers, classTags, classResponses)
+      readMethod(cls, method)(classServers, classTags, classResponses, classSecurityRequirements)
     }
   }
 
   private def readMethod(cls: Class[_], method: Method)
                         (implicit classServers: List[Server],
                                   classTags: Set[Tag],
-                                  classResponses: Array[io.swagger.v3.oas.annotations.responses.ApiResponse]): Unit = {
+                                  classResponses: Array[io.swagger.v3.oas.annotations.responses.ApiResponse],
+                                  classSecurityRequirements: List[SecurityRequirement]): Unit = {
     if (ReflectionUtils.isOverriddenMethod(method, cls)) return
 
     // complete name as stored in route
@@ -166,15 +186,12 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
     if (!routes.exists(fullMethodName)) return
 
     val route = routes(fullMethodName)
-    //val operationPath = getPathFromRoute(route.path, config.basePath)
-
-    println("Servers: " + classServers.size)
 
     val basePath =
       if (classServers.isEmpty) {
         "/"
       } else {
-        classServers(0).getUrl
+        classServers.head.getUrl
       }
 
     val operationPath = getPathFromRoute(route.path, basePath)
@@ -470,7 +487,8 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
   private def parseMethod(cls: Class[_], method: Method, route: Route, annotation: io.swagger.v3.oas.annotations.Operation)
                          (implicit classServers: List[Server],
                                    classTags: Set[Tag],
-                                   classResponses: Array[io.swagger.v3.oas.annotations.responses.ApiResponse]): Operation = {
+                                   classResponses: Array[io.swagger.v3.oas.annotations.responses.ApiResponse],
+                                   classSecurityRequirements: List[SecurityRequirement]): Operation = {
     val hidden = ReflectionUtils.getAnnotation(method, classOf[io.swagger.v3.oas.annotations.Hidden])
     if (hidden != null) {
       return null
@@ -537,8 +555,12 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
     }
 
     // Security
+    classSecurityRequirements.foreach(operation.addSecurityItem)
+
     if (annotation != null) {
-      SecurityParser.getSecurityRequirements(annotation.security).toOption.foreach(operation.setSecurity)
+      SecurityParser.getSecurityRequirements(annotation.security)
+        .toOption
+        .foreach(list => list.asScala.foreach(operation.addSecurityItem))
     }
 
     // Callbacks

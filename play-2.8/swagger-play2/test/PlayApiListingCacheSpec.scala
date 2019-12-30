@@ -87,7 +87,6 @@ PUT /api/dog/:id testdata.DogController.add0(id:String)
       //api.get.getInfo.getLicense.getName must beEqualTo(swaggerConfig.license)
 
       val pathDoc = api.get.getPaths.get("/document/{settlementId}/files/{fileId}/accept")
-      println(api.get.getPaths.keySet())
       pathDoc.readOperationsMap.size must beEqualTo(1)
 
       val opDocPost = pathDoc.readOperationsMap.get(HttpMethod.POST)
