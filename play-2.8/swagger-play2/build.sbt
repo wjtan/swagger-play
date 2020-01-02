@@ -14,18 +14,17 @@ libraryDependencies ++= Seq(
   "com.typesafe.play" %% "routes-compiler"            % PlayVersion,
 
   "org.slf4j"          % "slf4j-api"                  % "1.7.30",
-  "org.slf4j"          % "slf4j-log4j12"              % "1.7.30" % "test",
-
+  
   "com.typesafe.scala-logging" %% "scala-logging"     % "3.9.2",
   "io.swagger.core.v3" % "swagger-core"               % SwaggerVersion,
   "io.swagger.core.v3" % "swagger-integration"        % SwaggerVersion,
   "io.swagger.core.v3" % "swagger-jaxrs2"             % SwaggerVersion,
   "javax.ws.rs" % "javax.ws.rs-api" % "2.1.1",
-  //"io.swagger"        %% "swagger-scala-module"       % "1.0.6",
-
   "com.fasterxml.jackson.module"  %% "jackson-module-scala"       % "2.10.1",
+  //"io.swagger"        %% "swagger-scala-module"       % "1.0.6",
   "com.github.swagger-akka-http"  %% "swagger-scala-module"       % "2.0.5",
 
+  "org.slf4j"          % "slf4j-simple"              % "1.7.30"            % "test",
   "com.typesafe.play" %% "play-guice"                 % PlayVersion        % "test",
   "com.typesafe.play" %% "play-ebean"                 % "5.0.2"            % "test",
   "org.specs2"        %% "specs2-core"                % Specs2Version      % "test",
