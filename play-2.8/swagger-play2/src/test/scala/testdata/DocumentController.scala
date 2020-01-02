@@ -5,7 +5,7 @@ import io.swagger.v3.oas.annotations.enums.ParameterIn
 import io.swagger.v3.oas.annotations.media._
 import io.swagger.v3.oas.annotations.responses._
 import io.swagger.v3.oas.annotations.servers.Server
-import play.mvc.{Http, Result}
+import play.mvc.Result
 import play.api.mvc.InjectedController
 
 // @Api(value = "/apitest/document", description = "documents", tags = Array("Documents"))

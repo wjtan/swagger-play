@@ -1,5 +1,6 @@
 import java.io.File
 
+import com.github.swagger.scala.converter.SwaggerScalaModelConverter
 import io.swagger.v3.core.converter.ModelConverters
 import io.swagger.v3.core.util.Json
 import io.swagger.v3.oas.models.{OpenAPI, PathItem}
