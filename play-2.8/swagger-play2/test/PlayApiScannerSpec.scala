@@ -5,9 +5,10 @@ import org.junit.runner.RunWith
 import org.specs2.mutable._
 import org.specs2.mock.Mockito
 import org.specs2.runner.JUnitRunner
+import play.api.Environment
+
 import scala.jdk.CollectionConverters._
-import play.modules.swagger.util.SwaggerContext
-import play.routes.compiler.{ Route => PlayRoute }
+import play.routes.compiler.{Route => PlayRoute}
 
 @RunWith(classOf[JUnitRunner])
 class PlayApiScannerSpec extends Specification with Mockito {
@@ -29,17 +30,18 @@ PUT /api/dog/:id testdata.DogController.add0(id:String)
     }
   }
 
-  val ctx = new SwaggerContext
-  val routesRules = RouteProvider.buildRouteRules(routesList) 
+  val routesRules = SwaggerPluginHelper.buildRouteRules(routesList)
   val route = new RouteWrapper(routesRules)
+  val env = Environment.simple()
+  val scanner = new PlayApiScanner(PlaySwaggerConfig.defaultReference, route, env)
 
   "PlayApiScanner" should {
     "identify correct API classes based on router and API annotations" in {
-      val classes = new PlayApiScanner(ctx, PlaySwaggerConfig(), route).classes()
+      val classes = scanner.classes()
 
       classes.asScala.toList.length must beEqualTo(2)
-      classes.contains(ctx.loadClass("testdata.DogController")) must beTrue
-      classes.contains(ctx.loadClass("testdata.CatController")) must beTrue
+      classes.contains(env.classLoader.loadClass("testdata.DogController")) must beTrue
+      classes.contains(env.classLoader.loadClass("testdata.CatController")) must beTrue
     }
   }
 

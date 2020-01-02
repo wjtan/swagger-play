@@ -16,60 +16,110 @@
 
 package play.modules.swagger
 
-import javax.inject.Inject
-import play.modules.swagger.util.SwaggerContext
-import play.api.inject.ApplicationLifecycle
-import play.api.Application
-import play.api.routing.Router
+import java.io.File
 
-import scala.concurrent.Future
-import scala.jdk.CollectionConverters._
-import org.apache.commons.lang3.StringUtils
+import javax.inject.Inject
+import play.api.{Configuration, Environment}
+import play.routes.compiler.RoutesFileParser
+import play.routes.compiler.StaticPart
+import play.routes.compiler.{Include => PlayInclude}
+import play.routes.compiler.{Route => PlayRoute}
+
+import scala.io.Source
 import com.typesafe.scalalogging._
 import io.swagger.v3.core.filter.OpenAPISpecFilter
 
-trait SwaggerPlugin
+trait SwaggerPlugin {
+  def config: PlaySwaggerConfig
+  def apiListingCache: ApiListingCache
+  def reader: PlayReader
+  def scanner: PlayApiScanner
+  def routes: RouteWrapper
+  def specFilter: Option[OpenAPISpecFilter]
+}
 
-class SwaggerPluginImpl @Inject() (lifecycle: ApplicationLifecycle, app: Application,
-                                   ctx: SwaggerContext, cache: ApiListingCache, scanner: PlayApiScanner) extends SwaggerPlugin {
-
-  import StringUtils._
-
+class SwaggerPluginImpl @Inject() (environment: Environment, configuration: Configuration) extends SwaggerPlugin {
   private[this] val logger = Logger[SwaggerPlugin]
 
   logger.debug("Swagger - starting initialisation...")
 
-  ctx.registerClassLoader(app.classloader)
+  lazy val config: PlaySwaggerConfig = PlaySwaggerConfig(configuration)
 
-  // ScannerFactory.setScanner(scanner)
-
-  val config = app.configuration
-
-  if (config.has("swagger.filter")) {
-    config.get[String]("swagger.filter") match {
-      case value if isEmpty(value) =>
-      case e => {
-        try {
-          ctx.registerFilter(ctx.loadClass(e).newInstance.asInstanceOf[OpenAPISpecFilter])
-          logger.debug("Setting swagger.filter to %s".format(e))
-        } catch {
-          case ex: Exception => logger.error(s"Failed to load filter $e", ex)
-        }
-      }
+  lazy val routes = new RouteWrapper({
+    val routesFile = configuration.get[Option[String]]("play.http.router") match {
+      case None => "routes"
+      case Some(value) => SwaggerPluginHelper.playRoutesClassNameToFileName(value)
     }
+
+    val routesList = SwaggerPluginHelper.parseRoutes(routesFile, "", environment)
+    SwaggerPluginHelper.buildRouteRules(routesList)
+  })
+
+  lazy val scanner = new PlayApiScanner(config, routes, environment)
+
+  lazy val specFilter: Option[OpenAPISpecFilter] = config.filterClass match {
+    case Some(e) if e.nonEmpty =>
+      try {
+        val filter = environment.classLoader.loadClass(e).newInstance.asInstanceOf[OpenAPISpecFilter]
+        logger.debug("Setting swagger.filter to %s".format(e))
+        Some(filter)
+      } catch {
+        case ex: Exception =>
+          Logger("swagger").error("Failed to load filter " + e, ex)
+          None
+      }
+    case _ =>
+      None
   }
 
-  val docRoot = ""
-  cache.listing(docRoot, "127.0.0.1")
+  lazy val reader = new PlayReader(routes)
+  lazy val apiListingCache = new ApiListingCache(reader, scanner)
 
   logger.debug("Swagger - initialization done.")
+}
 
-  // previous contents of Plugin.onStart
-  lifecycle.addStopHook { () =>
-    cache.cache = None
-    logger.debug("Swagger - stopped.")
+object SwaggerPluginHelper {
+  private val logger = Logger("swagger")
 
-    Future.successful(())
+  def playRoutesClassNameToFileName(className: String): String = className.replace(".Routes", ".routes")
+
+  def buildRouteRules(routesList: List[PlayRoute]): Map[String, PlayRoute] = {
+    routesList.map { route =>
+      val call = route.call
+      val routeName = (call.packageName.toSeq ++ Seq(call.controller + "$", call.method)).mkString(".")
+      routeName -> route
+    }.toMap
   }
 
+  // Parses multiple route files recursively
+  def parseRoutes(routesFile: String, prefix: String, env: Environment): List[PlayRoute] = {
+    logger.debug(s"Processing route file '$routesFile' with prefix '$prefix'")
+
+    val parsedRoutes = env.resourceAsStream(routesFile).map { stream =>
+      val routesContent = Source.fromInputStream(stream).mkString
+      RoutesFileParser.parseContent(routesContent, new File(routesFile))
+    }.getOrElse(Right(List.empty)) // ignore routes files that don't exist
+
+    val routes = parsedRoutes.getOrElse(throw new NoSuchElementException("Parsed routes not found!")).collect {
+      case route: PlayRoute =>
+        logger.debug(s"Adding route '$route'")
+        (prefix, route.path.parts) match {
+          case ("", _) => Seq(route)
+          case (_, Seq()) => Seq(route.copy(path = route.path.copy(parts = StaticPart(prefix) +: route.path.parts)))
+          case (_, Seq(StaticPart(""))) => Seq(route.copy(path = route.path.copy(parts = StaticPart(prefix) +: route.path.parts)))
+          case (_, Seq(StaticPart("/"))) => Seq(route.copy(path = route.path.copy(parts = StaticPart(prefix) +: route.path.parts)))
+          case (_, _) => Seq(route.copy(path = route.path.copy(parts = StaticPart(prefix) +: StaticPart("/") +: route.path.parts)))
+        }
+      case include: PlayInclude =>
+        logger.debug(s"Processing route include $include")
+        val newPrefix = if (prefix == "") {
+          include.prefix
+        } else {
+          s"$prefix/${include.prefix}"
+        }
+        parseRoutes(playRoutesClassNameToFileName(include.router), newPrefix, env)
+    }.flatten
+    logger.debug(s"Finished processing route file '$routesFile'")
+    routes
+  }
 }

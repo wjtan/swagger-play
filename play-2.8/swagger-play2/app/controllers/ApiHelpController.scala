@@ -26,12 +26,11 @@ import io.swagger.v3.core.util.Json
 import io.swagger.v3.oas.models.{OpenAPI, Paths}
 import play.api.http.HttpEntity
 import play.api.mvc._
-import play.modules.swagger.ApiListingCache
+import play.modules.swagger.{ApiListingCache, SwaggerPlugin}
 
 import scala.jdk.CollectionConverters._
 import javax.inject.Inject
-import org.slf4j.LoggerFactory
-import play.modules.swagger.util.SwaggerContext
+import org.slf4j.{Logger, LoggerFactory}
 
 object ErrorResponse {
   val ERROR = 1
@@ -47,7 +46,7 @@ class ErrorResponse(@XmlElement var code: Int, @XmlElement var message: String) 
   @XmlTransient
   def getCode: Int = code
 
-  def setCode(code: Int) = this.code = code
+  def setCode(code: Int): Unit = this.code = code
 
   def getType: String = code match {
     case ErrorResponse.ERROR => "error"
@@ -58,35 +57,39 @@ class ErrorResponse(@XmlElement var code: Int, @XmlElement var message: String) 
     case _ => "unknown"
   }
 
-  def setType(`type`: String) = {}
+  def setType(`type`: String): Unit = {}
 
   def getMessage: String = message
 
-  def setMessage(message: String) = this.message = message
+  def setMessage(message: String): Unit = this.message = message
 }
 
-class ApiHelpController @Inject() (ctx: SwaggerContext, cc: ControllerComponents, cache: ApiListingCache) extends SwaggerBaseApiController(ctx, cc, cache) {
-  def getResources = Action {
+class ApiHelpController @Inject() (plugin: SwaggerPlugin, cc: ControllerComponents) extends SwaggerBaseApiController(plugin, cc) {
+  def getResources: Action[AnyContent] = Action {
     request =>
       implicit val requestHeader: RequestHeader = request
       val host: String = requestHeader.host
       val resourceListing: OpenAPI = getResourceListing(host)
-      val response: String = returnXml(request) match {
-        case true => toXmlString(resourceListing)
-        case false => toJsonString(resourceListing)
-      }
+      val response: String =
+        if (returnXml(request)) {
+          toXmlString(resourceListing)
+        } else {
+          toJsonString(resourceListing)
+        }
       returnValue(request, response)
   }
 
-  def getResource(path: String) = Action {
+  def getResource(path: String): Action[AnyContent] = Action {
     request =>
       implicit val requestHeader: RequestHeader = request
       val host: String = requestHeader.host
       val apiListing: OpenAPI = getApiListing(path, host)
-      val response: String = returnXml(request) match {
-        case true => toXmlString(apiListing)
-        case false => toJsonString(apiListing)
-      }
+      val response: String =
+        if (returnXml(request)) {
+          toXmlString(apiListing)
+        } else {
+          toJsonString(apiListing)
+        }
       Option(response) match {
         case Some(help) => returnValue(request, help)
         case None =>
@@ -101,12 +104,12 @@ class ApiHelpController @Inject() (ctx: SwaggerContext, cc: ControllerComponents
   }
 }
 
-class SwaggerBaseApiController @Inject() (ctx: SwaggerContext, cc: ControllerComponents, cache: ApiListingCache) extends AbstractController(cc)  {
-  val logger = LoggerFactory.getLogger("play.modules.swagger")
+class SwaggerBaseApiController @Inject() (plugin: SwaggerPlugin, cc: ControllerComponents) extends AbstractController(cc)  {
+  protected val logger: Logger = LoggerFactory.getLogger("play.modules.swagger")
 
-  protected def returnXml(request: Request[_]) = request.path.contains(".xml")
+  protected def returnXml(request: Request[_]): Boolean = request.path.contains(".xml")
 
-  protected val AccessControlAllowOrigin = ("Access-Control-Allow-Origin", "*")
+  protected val AccessControlAllowOrigin: (String, String) = ("Access-Control-Allow-Origin", "*")
 
   /**
    * Get a list of all top level resources
@@ -114,26 +117,20 @@ class SwaggerBaseApiController @Inject() (ctx: SwaggerContext, cc: ControllerCom
   protected def getResourceListing(host: String)(implicit requestHeader: RequestHeader): OpenAPI = {
     logger.debug("ApiHelpInventory.getRootResources")
     val docRoot = ""
-    val queryParams = (for ((key, value) <- requestHeader.queryString) yield {
+    val queryParams = for ((key, value) <- requestHeader.queryString) yield {
       (key, value.toList.asJava)
-    }).toMap
+    }
     val cookies = (for (cookie <- requestHeader.cookies) yield {
       (cookie.name, cookie.value)
     }).toMap
-    val headers = (for ((key, value) <- requestHeader.headers.toMap) yield {
+    val headers = for ((key, value) <- requestHeader.headers.toMap) yield {
       (key, value.toList.asJava)
-    }).toMap
-
-    val filter = new SpecFilter
-    val l: Option[OpenAPI] = cache.listing(docRoot, host)
-
-    val specs: OpenAPI = l match {
-      case Some(m) => m
-      case _ => new OpenAPI()
     }
 
-    val hasFilter = ctx.filter
-    hasFilter match {
+    val filter = new SpecFilter
+    val specs: OpenAPI = plugin.apiListingCache.listing(host)
+
+    plugin.specFilter match {
       case Some(f) => filter.filter(specs, f, queryParams.asJava, cookies.asJava, headers.asJava)
       case None => specs
     }
@@ -145,21 +142,15 @@ class SwaggerBaseApiController @Inject() (ctx: SwaggerContext, cc: ControllerCom
    */
   protected def getApiListing(resourceName: String, host: String)(implicit requestHeader: RequestHeader): OpenAPI = {
     logger.debug("ApiHelpInventory.getResource(%s)".format(resourceName))
-    val docRoot = ""
     val filter = new SpecFilter
     val queryParams = requestHeader.queryString.map { case (key, value) => key -> value.toList.asJava }
     val cookies = requestHeader.cookies.map { cookie => cookie.name -> cookie.value }.toMap.asJava
     val headers = requestHeader.headers.toMap.map { case (key, value) => key -> value.toList.asJava }
     val pathPart = resourceName
 
-    val l: Option[OpenAPI] = cache.listing(docRoot, host)
-    val specs: OpenAPI = l match {
-      case Some(m) => m
-      case _ => new OpenAPI()
-    }
-    val hasFilter = ctx.filter
+    val specs = plugin.apiListingCache.listing(host)
 
-    val clone = hasFilter match {
+    val clone = plugin.specFilter match {
       case Some(f) => filter.filter(specs, f, queryParams.asJava, cookies, headers.asJava)
       case None => specs
     }
@@ -171,41 +162,43 @@ class SwaggerBaseApiController @Inject() (ctx: SwaggerContext, cc: ControllerCom
     clone
   }
 
+  // TODO: looks like this is broken for anything other than strings
   def toXmlString(data: Any): String = {
-    if (data.getClass.equals(classOf[String])) {
-      data.asInstanceOf[String]
-    } else {
-      val stringWriter = new StringWriter()
-      stringWriter.toString
+    data match {
+      case str: String => str
+      case _ =>
+        val stringWriter = new StringWriter()
+        stringWriter.toString
     }
   }
 
-  protected def XmlResponse(data: Any) = {
+  protected def XmlResponse(data: Any): Result = {
     val xmlValue = toXmlString(data)
     Ok.chunked(Source.single(xmlValue.getBytes("UTF-8"))).as("application/xml")
   }
 
   protected def returnValue(request: Request[_], obj: Any): Result = {
-    val response = returnXml(request) match {
-      case true => XmlResponse(obj)
-      case false => JsonResponse(obj)
-    }
+    val response =
+      if (returnXml(request)) {
+        XmlResponse(obj)
+      } else {
+        JsonResponse(obj)
+      }
     response.withHeaders(AccessControlAllowOrigin)
   }
 
   def toJsonString(data: Any): String = {
-    if (data.getClass.equals(classOf[String])) {
-      data.asInstanceOf[String]
-    } else {
-      Json.pretty(data.asInstanceOf[AnyRef])
+    data match {
+      case str: String => str
+      case _ => Json.pretty(data.asInstanceOf[AnyRef])
     }
   }
 
-  protected def JsonResponse(data: Any) = {
+  protected def JsonResponse(data: Any): Result = {
     val jsonBytes = toJsonString(data).getBytes("UTF-8")
     val source = Source.single(jsonBytes).map(ByteString.apply)
     Result(
-      header = ResponseHeader(200),
+      header = ResponseHeader(OK),
       body = HttpEntity.Streamed(source, Option(jsonBytes.length), None)
     ).as("application/json")
   }

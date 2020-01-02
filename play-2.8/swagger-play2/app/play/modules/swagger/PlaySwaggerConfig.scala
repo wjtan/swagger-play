@@ -1,55 +1,45 @@
 package play.modules.swagger
 
+import com.typesafe.config.Config
+import javax.annotation.Nullable
 import play.api.Configuration
 
-import javax.inject.{ Inject, Provider, Singleton }
-
 case class PlaySwaggerConfig(
-  schemes: Array[String] = null,
-  title: String = "",
-  version: String = "",
-  description: String = "",
-  termsOfServiceUrl: String = "",
-  contact: String = "",
-  license: String = "",
-  licenseUrl: String = "",
-  filterClass: String = null,
-  host: String = "",
-  basePath: String = "")
+                              title: String,
+                              version: String,
+                              description: String,
+                              termsOfServiceUrl: String,
+                              contact: String,
+                              license: String,
+                              licenseUrl: String,
+                              host: String,
+                              basePath: String,
+                              schemes: Seq[String],
+                              filterClass: Option[String]
+                            ) {
+  // Java APIs for reading the configuration
+  def getSchemes: Array[String] = schemes.toArray
+  @Nullable def getFilterClass: String = filterClass.orNull
+}
 
-@Singleton
-class PlaySwaggerConfigProvider @Inject() (implicit config: Configuration) extends Provider[PlaySwaggerConfig] {
-  val apiVersion = config.get[String]("swagger.api.version")
+object PlaySwaggerConfig {
+  def defaultReference: PlaySwaggerConfig = PlaySwaggerConfig(Configuration.reference)
 
-  val basePath = config.get[String]("swagger.api.basepath")
+  def apply(configuration: Configuration): PlaySwaggerConfig = {
+    PlaySwaggerConfig(
+      version = configuration.get[String]("swagger.api.version"),
+      description = configuration.get[String]("swagger.api.info.description"),
+      host = configuration.get[String]("swagger.api.host"),
+      basePath = configuration.get[String]("swagger.api.basepath"),
+      schemes = configuration.get[Seq[String]]("swagger.api.schemes"),
+      title = configuration.get[String]("swagger.api.info.title"),
+      contact = configuration.get[String]("swagger.api.info.contact"),
+      termsOfServiceUrl = configuration.get[String]("swagger.api.info.termsOfServiceUrl"),
+      license = configuration.get[String]("swagger.api.info.license"),
+      licenseUrl = configuration.get[String]("swagger.api.info.licenseUrl"),
+      filterClass = configuration.get[Option[String]]("swagger.filter")
+    )
+  }
 
-  val host = config.get[String]("swagger.api.host")
-
-  val title = config.get[String]("swagger.api.info.title")
-
-  val description = config.get[String]("swagger.api.info.description")
-
-  val termsOfServiceUrl = config.get[String]("swagger.api.info.termsOfService")
-
-  val contact = config.get[String]("swagger.api.info.contact")
-
-  val license = config.get[String]("swagger.api.info.license")
-
-  // licenceUrl needs to be a valid URL to validate against schema
-  val licenseUrl = config.get[String]("swagger.api.info.licenseUrl")
-
-  val swaggerConfig = PlaySwaggerConfig(
-    null,
-    title,
-    apiVersion,
-    description,
-    termsOfServiceUrl,
-    contact,
-    license,
-    licenseUrl,
-    null,
-    host,
-    basePath)
-
-  def get() = swaggerConfig
+  def apply(config: Config): PlaySwaggerConfig = apply(Configuration(config))
 }

@@ -6,8 +6,6 @@ import java.lang.reflect.Type
 import java.util
 import java.util.regex.Pattern
 
-import javax.inject.Inject
-
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
 
@@ -33,7 +31,7 @@ import play.modules.swagger.util.CrossUtil
 import play.modules.swagger.util.JavaOptionals._
 import play.routes.compiler._
 
-class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
+class PlayReader(routes: RouteWrapper) extends OpenApiReader {
   private[this] val logger = Logger[PlayReader]
 
   private[this] val typeFactory = Json.mapper.getTypeFactory
@@ -93,7 +91,7 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
         .map(_.asScala.toList)
         .getOrElse(List.empty[SecurityRequirement])
 
-    implicit val apiDocs = Option(api.getExternalDocs)
+    implicit val apiDocs: Option[ExternalDocumentation] = Option(api.getExternalDocs)
 
     for (cls <- classes) {
       readClass(cls)
@@ -233,12 +231,8 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
     while (iter.hasNext) {
       val part = iter.next
       part match {
-        case staticPart: StaticPart => sb.append(staticPart.value)
-        case dynamicPart: DynamicPart => {
-          sb.append("{")
-          sb.append(dynamicPart.name)
-          sb.append("}")
-        }
+        case staticPart: StaticPart => sb ++= staticPart.value
+        case dynamicPart: DynamicPart => sb ++= "{" ++ dynamicPart.name ++ "}"
         case _ => logger.warn("ClassCastException parsing path from route {}", part.getClass.getSimpleName)
       }
     }
@@ -373,7 +367,7 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
       serverAnnotations ++= serverAnnotations2.asScala
     }
 
-    if (!serverAnnotations.isEmpty) {
+    if (serverAnnotations.nonEmpty) {
       val array = serverAnnotations.toArray[io.swagger.v3.oas.annotations.servers.Server]
       AnnotationsUtils.getServers(array)
         .toOption
@@ -526,16 +520,16 @@ class PlayReader @Inject()(routes: RouteWrapper) extends OpenApiReader {
   }
 
   private def parseCallback(annotation: io.swagger.v3.oas.annotations.callbacks.Callback): (String, Callback) = {
-    val callbackObject = new Callback();
-    if (isNotBlank(annotation.ref())) {
-      callbackObject.set$ref(annotation.ref());
-      return (annotation.name(), callbackObject)
+    val callbackObject = new Callback()
+    if (isNotBlank(annotation.ref)) {
+      callbackObject.set$ref(annotation.ref)
+      return (annotation.name, callbackObject)
     }
 
     val pathItemObject = new PathItem()
     for(opAnnotation <- annotation.operation) {
       val operation = parseOperation(opAnnotation)
-      val method = PathItem.HttpMethod.valueOf(opAnnotation.method.toUpperCase())
+      val method = PathItem.HttpMethod.valueOf(opAnnotation.method.toUpperCase)
       pathItemObject.operation(method, operation)
     }
     callbackObject.addPathItem(annotation.callbackUrlExpression, pathItemObject)

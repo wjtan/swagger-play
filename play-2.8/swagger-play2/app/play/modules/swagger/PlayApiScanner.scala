@@ -1,9 +1,8 @@
 package play.modules.swagger
 
-//import io.swagger.annotations.Api
-//import io.swagger.config._
-//import io.swagger.models.{Contact, Info, License, Scheme, Swagger}
 import java.util
+
+import scala.jdk.CollectionConverters._
 
 import org.apache.commons.lang3.StringUtils
 import com.typesafe.scalalogging._
@@ -12,16 +11,14 @@ import io.swagger.v3.oas.integration.SwaggerConfiguration
 import io.swagger.v3.oas.integration.api.{OpenAPIConfiguration, OpenApiScanner}
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.info.{Contact, Info, License}
-import play.modules.swagger.util.SwaggerContext
 
-import scala.jdk.CollectionConverters._
-import javax.inject.Inject
+import play.api.Environment
 
 /**
  * Identifies Play Controllers annotated as Swagger API's.
  * Uses the Play Router to identify Controllers, and then tests each for the API annotation.
  */
-class PlayApiScanner @Inject() (ctx: SwaggerContext, playSwaggerConfig: PlaySwaggerConfig, route: RouteWrapper) extends OpenApiScanner {
+class PlayApiScanner (playSwaggerConfig: PlaySwaggerConfig, route: RouteWrapper, environment: Environment) extends OpenApiScanner {
   private[this] val logger = Logger[PlayApiScanner]
   private[this] var config: OpenAPIConfiguration = new SwaggerConfiguration()
 
@@ -98,7 +95,7 @@ class PlayApiScanner @Inject() (ctx: SwaggerContext, playSwaggerConfig: PlaySwag
     val list = filterControllers.collect {
       case className: String if {
         try {
-          ctx.loadClass(className).getAnnotation(classOf[Hidden]) == null
+          environment.classLoader.loadClass(className).getAnnotation(classOf[Hidden]) == null
         } catch {
           case ex: Exception => {
             logger.error("Problem loading class:  %s. %s: %s".format(className, ex.getClass.getName, ex.getMessage))
@@ -107,7 +104,7 @@ class PlayApiScanner @Inject() (ctx: SwaggerContext, playSwaggerConfig: PlaySwag
         }
       } =>
         logger.debug("Found API controller:  %s".format(className))
-        ctx.loadClass(className)
+        environment.classLoader.loadClass(className)
     }
 
     list.toSet.asJava
