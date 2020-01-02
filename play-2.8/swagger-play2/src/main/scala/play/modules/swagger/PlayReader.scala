@@ -31,7 +31,7 @@ import play.modules.swagger.util.CrossUtil
 import play.modules.swagger.util.JavaOptionals._
 import play.routes.compiler._
 
-class PlayReader(routes: RouteWrapper) extends OpenApiReader {
+class PlayReader(swaggerConfig: PlaySwaggerConfig, routes: RouteWrapper) extends OpenApiReader {
   private[this] val logger = Logger[PlayReader]
 
   private[this] val typeFactory = Json.mapper.getTypeFactory
@@ -195,9 +195,9 @@ class PlayReader(routes: RouteWrapper) extends OpenApiReader {
 
     val route = routes(fullMethodName)
 
-    val basePath =
+    val basePath: String =
       if (classServers.isEmpty) {
-        "/"
+        swaggerConfig.basePath
       } else {
         classServers.head.getUrl
       }

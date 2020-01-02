@@ -72,7 +72,7 @@ class SwaggerPluginImpl @Inject() (environment: Environment, configuration: Conf
       None
   }
 
-  lazy val reader = new PlayReader(routes)
+  lazy val reader = new PlayReader(config, routes)
   lazy val apiListingCache = new ApiListingCache(reader, scanner)
 
   logger.debug("Swagger - initialization done.")

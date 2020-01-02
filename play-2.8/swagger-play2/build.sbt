@@ -5,24 +5,31 @@ checksums in update := Nil
 
 scalaVersion := "2.13.1"
 
+val PlayVersion = "2.8.0"
+val SwaggerVersion = "2.1.0"
+val Specs2Version = "4.8.1"
+
 libraryDependencies ++= Seq(
+  "com.typesafe.play" %% "play"                       % PlayVersion,
+  "com.typesafe.play" %% "routes-compiler"            % PlayVersion,
+
   "com.fasterxml.jackson.module"  %% "jackson-module-scala"       % "2.10.1",
   "org.slf4j"          % "slf4j-api"                  % "1.7.30",
   "com.typesafe.scala-logging" %% "scala-logging"     % "3.9.2",
-  "io.swagger.core.v3" % "swagger-core"               % "2.1.0",
-  "io.swagger.core.v3" % "swagger-integration"        % "2.1.0",
-  "io.swagger.core.v3" % "swagger-jaxrs2"             % "2.1.0",
+  "io.swagger.core.v3" % "swagger-core"               % SwaggerVersion,
+  "io.swagger.core.v3" % "swagger-integration"        % SwaggerVersion,
+  "io.swagger.core.v3" % "swagger-jaxrs2"             % SwaggerVersion,
   "javax.ws.rs" % "javax.ws.rs-api" % "2.1.1",
   //"io.swagger"        %% "swagger-scala-module"       % "1.0.6",
   "com.github.swagger-akka-http" %% "swagger-scala-module" % "2.0.5",
-  "com.typesafe.play" %% "routes-compiler"            % "2.8.0",
+  "com.typesafe.play" %% "play-guice"                 % PlayVersion        % "test",
   "com.typesafe.play" %% "play-ebean"                 % "5.0.2"            % "test",
-  "org.specs2"        %% "specs2-core"                % "4.8.1"            % "test",
-  "org.specs2"        %% "specs2-mock"                % "4.8.1"            % "test",
-  "org.specs2"        %% "specs2-junit"               % "4.8.1"            % "test",
+  "org.specs2"        %% "specs2-core"                % Specs2Version      % "test",
+  "org.specs2"        %% "specs2-mock"                % Specs2Version      % "test",
+  "org.specs2"        %% "specs2-junit"               % Specs2Version      % "test",
   "org.mockito"        % "mockito-core"               % "3.2.0"            % "test")
 
-mappings in (Compile, packageBin) ~= { _.filter(!_._1.getName.equals("logback-test.xml")) }
+//mappings in (Compile, packageBin) ~= { _.filter(!_._1.getName.equals("logback-test.xml")) }
 
 //publishTo <<= version { (v: String) =>
 //  val nexus = "https://oss.sonatype.org/"
@@ -87,4 +94,4 @@ pomExtra := {
   </developers>
 }
 
-lazy val root = (project in file(".")).enablePlugins(PlayScala)
+//lazy val root = (project in file(".")).enablePlugins(PlayScala)
