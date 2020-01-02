@@ -23,6 +23,8 @@ PUT /api/cat @testdata.CatController.add1
 GET /api/fly testdata.FlyController.list
 PUT /api/dog testdata.DogController.add1
 PUT /api/dog/:id testdata.DogController.add0(id:String)
+GET /api/del/list testdata.DelegatedController.list
+GET /del/list testdata.DelegatedController.list2
 """, new File("")).getOrElse(List.empty).collect {
       case (route: PlayRoute) => {
         route
@@ -30,10 +32,26 @@ PUT /api/dog/:id testdata.DogController.add0(id:String)
     }
   }
 
+  val config = PlaySwaggerConfig(
+    description = "description",
+    basePath = "/",
+    contact = "contact",
+    host = "127.0.0.1",
+    version = "beta",
+    title = "title",
+    termsOfServiceUrl = "http://termsOfServiceUrl",
+    license = "license",
+    licenseUrl = "http://licenseUrl",
+    filterClass = None,
+    ignoreRoutes = List("/api/del"), // Ignore list
+    onlyRoutes = List("/api") // Ignore list2
+  )
+
   val routesRules = SwaggerPluginHelper.buildRouteRules(routesList)
   val route = new RouteWrapper(routesRules)
   val env = Environment.simple()
-  val scanner = new PlayApiScanner(PlaySwaggerConfig.defaultReference, route, env)
+  val scanner = new PlayApiScanner(config, route, env)
+
 
   "PlayApiScanner" should {
     "identify correct API classes based on router and API annotations" in {

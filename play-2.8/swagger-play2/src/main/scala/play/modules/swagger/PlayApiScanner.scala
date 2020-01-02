@@ -3,13 +3,12 @@ package play.modules.swagger
 import java.util
 
 import scala.jdk.CollectionConverters._
-
 import com.typesafe.scalalogging._
 import io.swagger.v3.oas.annotations.Hidden
 import io.swagger.v3.oas.integration.SwaggerConfiguration
 import io.swagger.v3.oas.integration.api.{OpenAPIConfiguration, OpenApiScanner}
-
 import play.api.Environment
+import play.routes.compiler.Route
 
 /**
  * Identifies Play Controllers annotated as Swagger API's.
@@ -26,35 +25,34 @@ class PlayApiScanner (swaggerConfig: PlaySwaggerConfig, route: RouteWrapper, env
   override def classes(): java.util.Set[Class[_]] = {
     logger.debug("ControllerScanner - looking for controllers with API annotation")
 
-    val routes = route.router.toList
+    val ignoredRoutes: Seq[String] = Option(config.getIgnoredRoutes).map(_.asScala.toSeq).getOrElse(Seq.empty[String]) ++ swaggerConfig.ignoreRoutes
+
+    val routes0 = route.router
+    val routes1 =
+      if (swaggerConfig.onlyRoutes.isEmpty)
+        routes0
+      else
+        routes0.filter({ case (_, route) => startsWith(swaggerConfig.onlyRoutes, swaggerConfig.basePath + route.path.toString) })
+
+   val routes2 =
+     if (ignoredRoutes.isEmpty)
+       routes1
+     else
+       routes1.filter({ case (_, route) => !startsWith(ignoredRoutes, swaggerConfig.basePath + route.path.toString) })
 
     // get controller names from application routes
     val controllers: List[String] =
-      if (swaggerConfig.onlyRoutes.nonEmpty) {
-        swaggerConfig.onlyRoutes.toList
-      } else {
-        routes.map {
-          case (_, route) =>
-            if (route.call.packageName.isDefined) {
-              s"${route.call.packageName.get}.${route.call.controller}"
-            } else {
-              route.call.controller
-            }
-        }.distinct
-    }
-
-    implicit val ignorePackges: Set[String] =
-      Option(config.getIgnoredRoutes).map(_.asScala.toSet).getOrElse(Set.empty[String]) union swaggerConfig.ignoreRoutes.toSet
-
-    val filterControllers: List[String] =
-      if (ignorePackges.isEmpty) {
-        controllers
-      } else {
-        controllers.filter(isIgnored)
-      }
+      routes2.map {
+        case (_, route) =>
+          if (route.call.packageName.isDefined) {
+            s"${route.call.packageName.get}.${route.call.controller}"
+          } else {
+            route.call.controller
+          }
+      }.toList.distinct
 
     // Do not load hidden class
-    val list = filterControllers.collect {
+    val list = controllers.collect {
       case className: String if {
         try {
           environment.classLoader.loadClass(className).getAnnotation(classOf[Hidden]) == null
@@ -72,13 +70,13 @@ class PlayApiScanner (swaggerConfig: PlaySwaggerConfig, route: RouteWrapper, env
     list.toSet.asJava
   }
 
-  private def isIgnored(cls: String)(implicit ignoredPackges: Set[String]): Boolean = {
-    for(pkg <- ignoredPackges) {
-      if (cls.startsWith(pkg)) {
-        return false
+  private def startsWith(list: Seq[String], path: String): Boolean = {
+    for(str <- list){
+      if (path.startsWith(str)) {
+        return true
       }
     }
-    true
+    false
   }
 
   override def resources(): util.Map[String, AnyRef] = Map.empty[String, AnyRef].asJava
