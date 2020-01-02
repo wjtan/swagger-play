@@ -8,7 +8,6 @@ import java.util.regex.Pattern
 
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
-
 import org.apache.commons.lang3.StringUtils
 import com.typesafe.scalalogging._
 import io.swagger.v3.oas.annotations.{Operation => ApiOperation}
@@ -27,6 +26,7 @@ import io.swagger.v3.core.util._
 import io.swagger.v3.oas.integration._
 import io.swagger.v3.oas.integration.api._
 import io.swagger.v3.oas.models.callbacks.Callback
+import io.swagger.v3.oas.models.info.{Contact, Info, License}
 import play.modules.swagger.util.CrossUtil
 import play.modules.swagger.util.JavaOptionals._
 import play.routes.compiler._
@@ -68,6 +68,40 @@ class PlayReader(swaggerConfig: PlaySwaggerConfig, routes: RouteWrapper) extends
         }
       }
     }
+  }
+
+  def readSwaggerConfig(): OpenAPI = {
+    val info = new Info()
+
+    if (StringUtils.isNotBlank(swaggerConfig.description)) {
+      info.description(swaggerConfig.description);
+    }
+
+    if (StringUtils.isNotBlank(swaggerConfig.title)) {
+      info.title(swaggerConfig.title);
+    } else {
+      // title tag needs to be present to validate against schema
+      info.title("");
+    }
+
+    if (StringUtils.isNotBlank(swaggerConfig.version)) {
+      info.version(swaggerConfig.version);
+    }
+
+    if (StringUtils.isNotBlank(swaggerConfig.termsOfServiceUrl)) {
+      info.termsOfService(swaggerConfig.termsOfServiceUrl);
+    }
+
+    if (swaggerConfig.contact != null) {
+      info.contact(new Contact()
+        .name(swaggerConfig.contact));
+    }
+    if (swaggerConfig.license != null && swaggerConfig.licenseUrl != null) {
+      info.license(new License()
+        .name(swaggerConfig.license)
+        .url(swaggerConfig.licenseUrl));
+    }
+    api.info(info)
   }
 
   override def read(classes: util.Set[Class[_]], resources: util.Map[String, AnyRef]): OpenAPI = read(classes.asScala.toList)

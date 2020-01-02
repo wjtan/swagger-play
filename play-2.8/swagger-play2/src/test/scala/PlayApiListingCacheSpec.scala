@@ -60,7 +60,8 @@ PUT /api/dog/:id testdata.DogController.add0(id:String)
     license = "license",
     licenseUrl = "http://licenseUrl",
     filterClass = None,
-    schemes = Seq.empty
+    ignoreRoutes = Seq.empty,
+    onlyRoutes = Seq.empty
   )
 
   val env = Environment.simple()

@@ -18,52 +18,11 @@ import play.api.Environment
  * Identifies Play Controllers annotated as Swagger API's.
  * Uses the Play Router to identify Controllers, and then tests each for the API annotation.
  */
-class PlayApiScanner (playSwaggerConfig: PlaySwaggerConfig, route: RouteWrapper, environment: Environment) extends OpenApiScanner {
+class PlayApiScanner (swaggerConfig: PlaySwaggerConfig, route: RouteWrapper, environment: Environment) extends OpenApiScanner {
   private[this] val logger = Logger[PlayApiScanner]
   private[this] var config: OpenAPIConfiguration = new SwaggerConfiguration()
 
-  def updateInfoFromConfig(api: OpenAPI): Unit = {
-    val info = new Info()
-
-    if (StringUtils.isNotBlank(playSwaggerConfig.description)) {
-      info.description(playSwaggerConfig.description);
-    }
-
-    if (StringUtils.isNotBlank(playSwaggerConfig.title)) {
-      info.title(playSwaggerConfig.title);
-    } else {
-      // title tag needs to be present to validate against schema
-      info.title("");
-    }
-
-    if (StringUtils.isNotBlank(playSwaggerConfig.version)) {
-      info.version(playSwaggerConfig.version);
-    }
-
-    if (StringUtils.isNotBlank(playSwaggerConfig.termsOfServiceUrl)) {
-      info.termsOfService(playSwaggerConfig.termsOfServiceUrl);
-    }
-
-    if (playSwaggerConfig.contact != null) {
-      info.contact(new Contact()
-        .name(playSwaggerConfig.contact));
-    }
-    if (playSwaggerConfig.license != null && playSwaggerConfig.licenseUrl != null) {
-      info.license(new License()
-        .name(playSwaggerConfig.license)
-        .url(playSwaggerConfig.licenseUrl));
-    }
-    api.info(info)
-  }
-
   override def setConfiguration (config: OpenAPIConfiguration): Unit = {
-    //if (playSwaggerConfig.schemes != null) {
-    //  for (s <- playSwaggerConfig.schemes) swagger.scheme(Scheme.forValue(s))
-    //}
-    //updateInfoFromConfig()
-    //swagger.host(playSwaggerConfig.host)
-    //swagger.basePath(playSwaggerConfig.basePath)
-
     this.config = config
   }
 
@@ -73,22 +32,28 @@ class PlayApiScanner (playSwaggerConfig: PlaySwaggerConfig, route: RouteWrapper,
     val routes = route.router.toList
 
     // get controller names from application routes
-    val controllers = routes.map {
-      case (_, route) =>
-        if (route.call.packageName.isDefined) {
-          s"${route.call.packageName.get}.${route.call.controller}"
-        } else {
-          route.call.controller
-        }
-    }.distinct
+    val controllers: List[String] =
+      if (swaggerConfig.onlyRoutes.nonEmpty) {
+        swaggerConfig.onlyRoutes.toList
+      } else {
+        routes.map {
+          case (_, route) =>
+            if (route.call.packageName.isDefined) {
+              s"${route.call.packageName.get}.${route.call.controller}"
+            } else {
+              route.call.controller
+            }
+        }.distinct
+    }
 
-    implicit val acceptablePackges = Option(config.getResourcePackages).map(_.asScala.toSet).getOrElse(Set.empty[String])
+    implicit val ignorePackges: Set[String] =
+      Option(config.getIgnoredRoutes).map(_.asScala.toSet).getOrElse(Set.empty[String]) union swaggerConfig.ignoreRoutes.toSet
 
     val filterControllers: List[String] =
-      if (acceptablePackges.isEmpty) {
+      if (ignorePackges.isEmpty) {
         controllers
       } else {
-        controllers.filter(cls => isAcceptable(cls))
+        controllers.filter(isIgnored)
       }
 
     // Do not load hidden class
@@ -110,13 +75,13 @@ class PlayApiScanner (playSwaggerConfig: PlaySwaggerConfig, route: RouteWrapper,
     list.toSet.asJava
   }
 
-  private def isAcceptable(cls: String)(implicit acceptablePackges: Set[String]): Boolean = {
-    for(pkg <- acceptablePackges) {
+  private def isIgnored(cls: String)(implicit ignoredPackges: Set[String]): Boolean = {
+    for(pkg <- ignoredPackges) {
       if (cls.startsWith(pkg)) {
-        return true
+        return false
       }
     }
-    false
+    true
   }
 
   override def resources(): util.Map[String, AnyRef] = Map.empty[String, AnyRef].asJava

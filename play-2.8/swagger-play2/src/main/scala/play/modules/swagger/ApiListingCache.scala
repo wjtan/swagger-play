@@ -18,6 +18,7 @@ class ApiListingCache(reader: PlayReader, scanner: PlayApiScanner) {
       //scanner.updateInfoFromConfig(api) // FIXME
 
       val classes = scanner.classes().asScala.toList
+      reader.readSwaggerConfig()
       reader.read(classes)
     })
   }
