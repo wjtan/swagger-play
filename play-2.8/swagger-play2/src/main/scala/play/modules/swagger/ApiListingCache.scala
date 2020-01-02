@@ -14,9 +14,6 @@ class ApiListingCache(reader: PlayReader, scanner: PlayApiScanner) {
     cache.getOrElseUpdate(host, {
       logger.debug("Loading API metadata")
 
-      //val scanner = ScannerFactory.getScanner()
-      //scanner.updateInfoFromConfig(api) // FIXME
-
       val classes = scanner.classes().asScala.toList
       reader.readSwaggerConfig()
       reader.read(classes)

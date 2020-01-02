@@ -4,13 +4,10 @@ import java.util
 
 import scala.jdk.CollectionConverters._
 
-import org.apache.commons.lang3.StringUtils
 import com.typesafe.scalalogging._
 import io.swagger.v3.oas.annotations.Hidden
 import io.swagger.v3.oas.integration.SwaggerConfiguration
 import io.swagger.v3.oas.integration.api.{OpenAPIConfiguration, OpenApiScanner}
-import io.swagger.v3.oas.models.OpenAPI
-import io.swagger.v3.oas.models.info.{Contact, Info, License}
 
 import play.api.Environment
 

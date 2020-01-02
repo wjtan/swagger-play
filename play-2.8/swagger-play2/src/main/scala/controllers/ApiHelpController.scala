@@ -116,7 +116,7 @@ class SwaggerBaseApiController @Inject() (plugin: SwaggerPlugin, cc: ControllerC
    */
   protected def getResourceListing(host: String)(implicit requestHeader: RequestHeader): OpenAPI = {
     logger.debug("ApiHelpInventory.getRootResources")
-    val docRoot = ""
+
     val queryParams = for ((key, value) <- requestHeader.queryString) yield {
       (key, value.toList.asJava)
     }
