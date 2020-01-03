@@ -28,7 +28,8 @@ import play.api.http.HttpEntity
 import play.api.mvc._
 import play.modules.swagger.{ApiListingCache, SwaggerPlugin}
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
+//import scala.jdk.CollectionConverters._
 import javax.inject.Inject
 import org.slf4j.{Logger, LoggerFactory}
 
@@ -155,7 +156,7 @@ class SwaggerBaseApiController @Inject() (plugin: SwaggerPlugin, cc: ControllerC
       case None => specs
     }
     val paths = clone.getPaths.asScala
-    val filteredPaths = paths.view.filterKeys(_.startsWith(pathPart)).toMap
+    val filteredPaths = paths.filterKeys(_.startsWith(pathPart)).toMap
     val newPaths = new Paths()
     newPaths.putAll(filteredPaths.asJava)
     clone.setPaths(newPaths)

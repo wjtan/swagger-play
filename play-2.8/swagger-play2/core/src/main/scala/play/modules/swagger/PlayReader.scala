@@ -3,11 +3,11 @@ package play.modules.swagger
 import java.lang.annotation.Annotation
 import java.lang.reflect.Method
 import java.lang.reflect.Type
-import java.util
 import java.util.regex.Pattern
 
 import scala.collection.mutable.ListBuffer
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
+//import scala.jdk.CollectionConverters._
 import org.apache.commons.lang3.StringUtils
 import com.typesafe.scalalogging._
 import io.swagger.v3.oas.annotations.{Operation => ApiOperation}
@@ -104,7 +104,7 @@ class PlayReader(swaggerConfig: PlaySwaggerConfig, routes: RouteWrapper) extends
     api.info(info)
   }
 
-  override def read(classes: util.Set[Class[_]], resources: util.Map[String, AnyRef]): OpenAPI = read(classes.asScala.toList)
+  override def read(classes: java.util.Set[Class[_]], resources: java.util.Map[String, AnyRef]): OpenAPI = read(classes.asScala.toList)
 
   def read(classes: List[Class[_]]): OpenAPI = {
     // process SwaggerDefinitions first - so we get tags in desired order
@@ -479,7 +479,7 @@ class PlayReader(swaggerConfig: PlaySwaggerConfig, routes: RouteWrapper) extends
 
     // Extensions
     if (annotation != null && annotation.extensions.nonEmpty) {
-      AnnotationsUtils.getExtensions(annotation.extensions():_*).asScala.foreachEntry((k,v) => operation.addExtension(k, v))
+      AnnotationsUtils.getExtensions(annotation.extensions():_*).asScala.foreach({ case (k,v) => operation.addExtension(k, v) })
     }
 
     if (responses.isEmpty) {
@@ -533,7 +533,7 @@ class PlayReader(swaggerConfig: PlaySwaggerConfig, routes: RouteWrapper) extends
 
     // Extensions
     if (annotation.extensions.nonEmpty) {
-      AnnotationsUtils.getExtensions(annotation.extensions():_*).asScala.foreachEntry((k,v) => operation.addExtension(k, v))
+      AnnotationsUtils.getExtensions(annotation.extensions():_*).asScala.foreach({ case (k,v) => operation.addExtension(k, v) })
     }
 
     operation

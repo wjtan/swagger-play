@@ -7,7 +7,8 @@ import org.specs2.mock.Mockito
 import org.specs2.runner.JUnitRunner
 import play.api.Environment
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
+//import scala.jdk.CollectionConverters._
 import play.routes.compiler.{Route => PlayRoute}
 
 @RunWith(classOf[JUnitRunner])

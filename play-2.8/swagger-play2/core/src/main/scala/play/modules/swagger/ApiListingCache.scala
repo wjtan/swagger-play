@@ -2,7 +2,8 @@ package play.modules.swagger
 
 import io.swagger.v3.oas.models.OpenAPI
 
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
+//import scala.jdk.CollectionConverters._
 import com.typesafe.scalalogging._
 
 class ApiListingCache(reader: PlayReader, scanner: PlayApiScanner) {

@@ -1,8 +1,7 @@
 package play.modules.swagger
 
-import java.util
-
-import scala.jdk.CollectionConverters._
+import scala.collection.JavaConverters._
+//import scala.jdk.CollectionConverters._
 import com.typesafe.scalalogging._
 import io.swagger.v3.oas.annotations.Hidden
 import io.swagger.v3.oas.integration.SwaggerConfiguration
@@ -25,7 +24,7 @@ class PlayApiScanner (swaggerConfig: PlaySwaggerConfig, route: RouteWrapper, env
   override def classes(): java.util.Set[Class[_]] = {
     logger.debug("ControllerScanner - looking for controllers with API annotation")
 
-    val ignoredRoutes: Seq[String] = Option(config.getIgnoredRoutes).map(_.asScala.toSeq).getOrElse(Seq.empty[String]) ++ swaggerConfig.ignoreRoutes
+    val ignoredRoutes: scala.collection.Seq[String] = Option(config.getIgnoredRoutes).map(_.asScala.toSeq).getOrElse(Seq.empty[String]) ++ swaggerConfig.ignoreRoutes
 
     val routes0 = route.router
     val routes1 =
@@ -70,7 +69,7 @@ class PlayApiScanner (swaggerConfig: PlaySwaggerConfig, route: RouteWrapper, env
     list.toSet.asJava
   }
 
-  private def startsWith(list: Seq[String], path: String): Boolean = {
+  private def startsWith(list: scala.collection.Seq[String], path: String): Boolean = {
     for(str <- list){
       if (path.startsWith(str)) {
         return true
@@ -79,5 +78,5 @@ class PlayApiScanner (swaggerConfig: PlaySwaggerConfig, route: RouteWrapper, env
     false
   }
 
-  override def resources(): util.Map[String, AnyRef] = Map.empty[String, AnyRef].asJava
+  override def resources(): java.util.Map[String, AnyRef] = Map.empty[String, AnyRef].asJava
 }
