@@ -1,6 +1,8 @@
 organization in ThisBuild := "sg.wjtan"
 //scalaVersion in ThisBuild := "2.13.1"
 
+val coreVersion = "2.0.0-SNAPSHOT"
+
 val PlayVersion = "2.8.0"
 val SwaggerVersion = "2.1.0"
 val Specs2Version = "4.8.1"
@@ -39,7 +41,7 @@ lazy val root = project.in(file("."))
 lazy val swaggerPlay = project.in(file("core"))
   .settings(
     name := "swagger-play2",
-    version := "2.0.0-SNAPSHOT",
+    version := coreVersion,
     libraryDependencies ++= Seq(
       "com.typesafe.play" %% "play"                       % PlayVersion,
       "com.typesafe.play" %% "routes-compiler"            % PlayVersion,
@@ -112,5 +114,14 @@ lazy val sbtSwaggerPlay = project.in(file("sbtPlugin"))
   .settings(
     name := "sbt-swagger-play",
     version := "0.1-SNAPSHOT",
-    sbtPlugin := true
+    sbtPlugin := true,
+
+    libraryDependencies ++= Seq(
+      "io.swagger.core.v3" % "swagger-core" % SwaggerVersion,
+      organization.value %% "swagger-play2" % coreVersion,
+    ),
+
+    scripted := scripted.dependsOn(publishLocal in swaggerPlay).evaluated,
+    scriptedLaunchOpts ++= Seq("-Xmx1024M", "-Dplugin.version=" + version.value),
+    scriptedBufferLog := false
   )

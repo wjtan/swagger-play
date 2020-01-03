@@ -51,7 +51,7 @@ GET /del/list testdata.DelegatedController.list2
   val routesRules = SwaggerPluginHelper.buildRouteRules(routesList)
   val route = new RouteWrapper(routesRules)
   val env = Environment.simple()
-  val scanner = new PlayApiScanner(config, route, env)
+  val scanner = new PlayApiScanner(config, route, env.classLoader)
 
 
   "PlayApiScanner" should {

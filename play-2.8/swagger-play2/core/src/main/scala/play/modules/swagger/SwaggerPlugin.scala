@@ -16,7 +16,7 @@
 
 package play.modules.swagger
 
-import java.io.File
+import java.io.{File, InputStream}
 
 import javax.inject.Inject
 import play.api.{Configuration, Environment}
@@ -43,6 +43,8 @@ class SwaggerPluginImpl @Inject() (environment: Environment, configuration: Conf
 
   logger.debug("Swagger - starting initialisation...")
 
+  implicit val classLoader = environment.classLoader
+
   lazy val config: PlaySwaggerConfig = PlaySwaggerConfig(configuration)
 
   lazy val routes = new RouteWrapper({
@@ -51,11 +53,11 @@ class SwaggerPluginImpl @Inject() (environment: Environment, configuration: Conf
       case Some(value) => SwaggerPluginHelper.playRoutesClassNameToFileName(value)
     }
 
-    val routesList = SwaggerPluginHelper.parseRoutes(routesFile, "", environment)
+    val routesList = SwaggerPluginHelper.parseRoutes(routesFile, "")
     SwaggerPluginHelper.buildRouteRules(routesList)
   })
 
-  lazy val scanner = new PlayApiScanner(config, routes, environment)
+  lazy val scanner = new PlayApiScanner(config, routes, environment.classLoader)
 
   lazy val specFilter: Option[OpenAPISpecFilter] = config.filterClass match {
     case Some(e) if e.nonEmpty =>
@@ -83,6 +85,9 @@ object SwaggerPluginHelper {
 
   def playRoutesClassNameToFileName(className: String): String = className.replace(".Routes", ".routes")
 
+  def buildRouteRules(routesFile: String, prefix: String)(implicit classLoader: ClassLoader) : Map[String, PlayRoute] =
+    buildRouteRules(parseRoutes(routesFile, prefix))
+
   def buildRouteRules(routesList: List[PlayRoute]): Map[String, PlayRoute] = {
     routesList.map { route =>
       val call = route.call
@@ -91,11 +96,16 @@ object SwaggerPluginHelper {
     }.toMap
   }
 
+  private def resourceAsStream(name: String)(implicit classLoader: ClassLoader): Option[InputStream] = {
+    val n = name.stripPrefix("/")
+    Option(classLoader.getResourceAsStream(n))
+  }
+
   // Parses multiple route files recursively
-  def parseRoutes(routesFile: String, prefix: String, env: Environment): List[PlayRoute] = {
+  def parseRoutes(routesFile: String, prefix: String)(implicit classLoader: ClassLoader): List[PlayRoute] = {
     logger.debug(s"Processing route file '$routesFile' with prefix '$prefix'")
 
-    val parsedRoutes = env.resourceAsStream(routesFile).map { stream =>
+    val parsedRoutes = resourceAsStream(routesFile).map { stream =>
       val routesContent = Source.fromInputStream(stream).mkString
       RoutesFileParser.parseContent(routesContent, new File(routesFile))
     }.getOrElse(Right(List.empty)) // ignore routes files that don't exist
@@ -117,7 +127,7 @@ object SwaggerPluginHelper {
         } else {
           s"$prefix/${include.prefix}"
         }
-        parseRoutes(playRoutesClassNameToFileName(include.router), newPrefix, env)
+        parseRoutes(playRoutesClassNameToFileName(include.router), newPrefix)
     }.flatten
     logger.debug(s"Finished processing route file '$routesFile'")
     routes

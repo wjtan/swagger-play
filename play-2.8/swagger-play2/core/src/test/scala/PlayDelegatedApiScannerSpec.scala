@@ -9,8 +9,9 @@ import scala.collection.JavaConverters._
 
 class PlayDelegatedApiScannerSpec extends Specification with Mockito {
 
+  val env = Environment.simple()
   val routes: List[Route] =
-    SwaggerPluginHelper.parseRoutes("delegation", "/api", Environment.simple())
+    SwaggerPluginHelper.parseRoutes("delegation", "/api")(env.classLoader)
 
 
   val routesRules = SwaggerPluginHelper.buildRouteRules(routes)
@@ -20,9 +21,8 @@ class PlayDelegatedApiScannerSpec extends Specification with Mockito {
     host = "127.0.0.1"
   )
 
-  val env = Environment.simple()
   val route = new RouteWrapper(routesRules)
-  val scanner = new PlayApiScanner(swaggerConfig, route, env)
+  val scanner = new PlayApiScanner(swaggerConfig, route, env.classLoader)
   val playReader = new PlayReader(swaggerConfig, route)
   val apiListingCache = new ApiListingCache( playReader, scanner)
 

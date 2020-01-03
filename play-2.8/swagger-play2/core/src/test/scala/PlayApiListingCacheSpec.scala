@@ -67,7 +67,7 @@ PUT /api/dog/:id testdata.DogController.add0(id:String)
 
   val env = Environment.simple()
   val route = new RouteWrapper(routesRules)
-  val scanner = new PlayApiScanner(swaggerConfig, route, env)
+  val scanner = new PlayApiScanner(swaggerConfig, route, env.classLoader)
   val reader = new PlayReader(swaggerConfig, route)
   val cache = new ApiListingCache(reader, scanner)
 

@@ -43,4 +43,19 @@ object PlaySwaggerConfig {
   }
 
   def apply(config: Config): PlaySwaggerConfig = apply(Configuration(config))
+
+  def empty(): PlaySwaggerConfig = PlaySwaggerConfig(
+    title = "",
+    version = "beta",
+    description = "",
+    termsOfServiceUrl = "http://licenseUrl",
+    contact = "",
+    license = "",
+    licenseUrl = "",
+    host = "localhost:9000",
+    basePath = "/",
+    ignoreRoutes = Seq.empty,
+    onlyRoutes = Seq.empty,
+    filterClass = None
+  )
 }

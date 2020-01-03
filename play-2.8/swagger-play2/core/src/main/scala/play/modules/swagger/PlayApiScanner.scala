@@ -13,7 +13,7 @@ import play.routes.compiler.Route
  * Identifies Play Controllers annotated as Swagger API's.
  * Uses the Play Router to identify Controllers, and then tests each for the API annotation.
  */
-class PlayApiScanner (swaggerConfig: PlaySwaggerConfig, route: RouteWrapper, environment: Environment) extends OpenApiScanner {
+class PlayApiScanner (swaggerConfig: PlaySwaggerConfig, route: RouteWrapper, classLoader: ClassLoader) extends OpenApiScanner {
   private[this] val logger = Logger[PlayApiScanner]
   private[this] var config: OpenAPIConfiguration = new SwaggerConfiguration()
 
@@ -54,7 +54,7 @@ class PlayApiScanner (swaggerConfig: PlaySwaggerConfig, route: RouteWrapper, env
     val list = controllers.collect {
       case className: String if {
         try {
-          environment.classLoader.loadClass(className).getAnnotation(classOf[Hidden]) == null
+          classLoader.loadClass(className).getAnnotation(classOf[Hidden]) == null
         } catch {
           case ex: Exception => {
             logger.error("Problem loading class:  %s. %s: %s".format(className, ex.getClass.getName, ex.getMessage))
@@ -63,7 +63,7 @@ class PlayApiScanner (swaggerConfig: PlaySwaggerConfig, route: RouteWrapper, env
         }
       } =>
         logger.debug("Found API controller:  %s".format(className))
-        environment.classLoader.loadClass(className)
+        classLoader.loadClass(className)
     }
 
     list.toSet.asJava
