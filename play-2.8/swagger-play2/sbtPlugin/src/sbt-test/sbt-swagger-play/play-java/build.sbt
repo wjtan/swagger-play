@@ -8,3 +8,4 @@ lazy val root = (project in file(".")).enablePlugins(PlayJava)
 scalaVersion := "2.13.1"
 
 libraryDependencies += guice
+libraryDependencies += "io.swagger.core.v3" % "swagger-annotations" % "2.1.0"

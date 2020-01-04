@@ -1,3 +1,3 @@
 > compile
 > swagger
-$ exists target/swagger.json
+$ exists public/swagger.json

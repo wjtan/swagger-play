@@ -73,30 +73,30 @@ class PlayReader(swaggerConfig: PlaySwaggerConfig, routes: RouteWrapper) extends
   def readSwaggerConfig(): OpenAPI = {
     val info = new Info()
 
-    if (StringUtils.isNotBlank(swaggerConfig.description)) {
+    if (isNotBlank(swaggerConfig.description)) {
       info.description(swaggerConfig.description);
     }
 
-    if (StringUtils.isNotBlank(swaggerConfig.title)) {
+    if (isNotBlank(swaggerConfig.title)) {
       info.title(swaggerConfig.title);
     } else {
       // title tag needs to be present to validate against schema
       info.title("");
     }
 
-    if (StringUtils.isNotBlank(swaggerConfig.version)) {
+    if (isNotBlank(swaggerConfig.version)) {
       info.version(swaggerConfig.version);
     }
 
-    if (StringUtils.isNotBlank(swaggerConfig.termsOfServiceUrl)) {
+    if (isNotBlank(swaggerConfig.termsOfServiceUrl)) {
       info.termsOfService(swaggerConfig.termsOfServiceUrl);
     }
 
-    if (swaggerConfig.contact != null) {
+    if (isNotBlank(swaggerConfig.contact)) {
       info.contact(new Contact()
         .name(swaggerConfig.contact));
     }
-    if (swaggerConfig.license != null && swaggerConfig.licenseUrl != null) {
+    if (isNotBlank(swaggerConfig.license) && isNotBlank(swaggerConfig.licenseUrl)) {
       info.license(new License()
         .name(swaggerConfig.license)
         .url(swaggerConfig.licenseUrl));
@@ -319,14 +319,10 @@ class PlayReader(swaggerConfig: PlaySwaggerConfig, routes: RouteWrapper) extends
         return Option.empty
       }
 
-      if (!isEmpty(annotation.operationId)) {
-        operation.setOperationId(annotation.operationId)
-      }
-
-      operation
-        .summary(annotation.summary)
-        .description(annotation.description)
-        .deprecated(annotation.deprecated)
+      if (isNotEmpty(annotation.operationId)) operation.setOperationId(annotation.operationId)
+      if (isNotEmpty(annotation.operationId)) operation.setSummary(annotation.summary)
+      if (isNotEmpty(annotation.operationId)) operation.setDescription(annotation.description)
+      if(annotation.deprecated) operation.setDeprecated(true)
     }
 
     if (ReflectionUtils.getAnnotation(method, classOf[Deprecated]) != null) {
@@ -409,7 +405,7 @@ class PlayReader(swaggerConfig: PlaySwaggerConfig, routes: RouteWrapper) extends
     }
 
     // Tags
-    if (annotation != null) {
+    if (annotation != null && !annotation.tags.isEmpty) {
       operation.setTags(annotation.tags.toList.asJava)
     }
 
@@ -496,12 +492,11 @@ class PlayReader(swaggerConfig: PlaySwaggerConfig, routes: RouteWrapper) extends
     val responses = new ApiResponses()
     operation.setResponses(responses)
 
-    operation
-      .operationId(annotation.operationId)
-      .summary(annotation.summary)
-      .description(annotation.description)
-      .deprecated(annotation.deprecated)
-      .tags(annotation.tags.toList.asJava)
+    if (!isEmpty(annotation.operationId)) operation.setOperationId(annotation.operationId)
+    if (!isEmpty(annotation.operationId)) operation.setSummary(annotation.summary)
+    if (!isEmpty(annotation.operationId)) operation.setDescription(annotation.description)
+    if(annotation.deprecated) operation.setDeprecated(true)
+    if (!annotation.tags.isEmpty) operation.setTags(annotation.tags.toList.asJava)
 
     // Responses
     OperationParser.getApiResponses(annotation.responses, null, null, components, null)

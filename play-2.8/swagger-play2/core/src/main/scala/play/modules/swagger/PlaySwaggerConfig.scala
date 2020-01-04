@@ -48,7 +48,7 @@ object PlaySwaggerConfig {
     title = "",
     version = "beta",
     description = "",
-    termsOfServiceUrl = "http://licenseUrl",
+    termsOfServiceUrl = "",
     contact = "",
     license = "",
     licenseUrl = "",
