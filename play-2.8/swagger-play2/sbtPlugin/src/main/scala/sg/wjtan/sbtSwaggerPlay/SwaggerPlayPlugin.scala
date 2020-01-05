@@ -32,6 +32,8 @@ object SwaggerPlayPlugin extends AutoPlugin {
     val swaggerTask = TaskKey[Unit]("swagger", "Generate swagger.json")
   }
 
+  val swaggerConfig = TaskKey[PlaySwaggerConfig]("swagger-config")
+
   import autoImport._
 
   override lazy val projectSettings = Seq(
@@ -47,31 +49,8 @@ object SwaggerPlayPlugin extends AutoPlugin {
     swaggerIgnoreRoutes := Seq.empty,
     swaggerAcceptRoutes := Seq.empty,
     swaggerRouteFile := file("routes"),
-    swaggerOutputFile := file("public/swagger.json")
-  ) ++ inConfig(Compile)(Seq(
-    swaggerTask := Def.taskDyn { SwaggerPlay.generateTask(streams.value) }.value
-  ))
-
-  //override lazy val buildSettings = Seq()
-
-  //override lazy val globalSettings = Seq()
-}
-
-object SwaggerPlay {
-  import SwaggerPlayPlugin.autoImport._
-
-  def generateTask(streams: TaskStreams): Def.Initialize[Task[Unit]] = Def.task {
-    streams.log info "Generating Swagger"
-
-    val classPath = classDirectory.value.toURI.toURL
-    val resourcePaths: Array[URL] = resourceDirectories.value.map(_.toURI.toURL).toArray
-    val dependencyPaths: Array[URL] = dependencyClasspath.value.map(_.data.toURI.toURL).toArray
-    val allPaths: Array[URL] = resourcePaths ++ dependencyPaths :+ classPath
-
-    // Parent loader as this ClassLoader
-    implicit val classLoader = new java.net.URLClassLoader(allPaths, this.getClass.getClassLoader)
-
-    val swaggerConfig = PlaySwaggerConfig(
+    swaggerOutputFile := file("public/swagger.json"),
+    swaggerConfig := PlaySwaggerConfig(
       version = swaggerApiVersion.value,
       description = swaggerDescription.value,
       host = swaggerHost.value,
@@ -85,8 +64,31 @@ object SwaggerPlay {
       onlyRoutes = swaggerAcceptRoutes.value,
       filterClass = None
     )
+  ) ++ inConfig(Compile)(Seq(
+    swaggerTask := Def.taskDyn { SwaggerPlay.generateTask(swaggerConfig.value, swaggerRouteFile.value, swaggerOutputFile.value, streams.value) }.value
+  ))
 
-    val routeFile = swaggerRouteFile.value.toString
+  //override lazy val buildSettings = Seq()
+
+  //override lazy val globalSettings = Seq()
+}
+
+object SwaggerPlay {
+  def generateTask(swaggerConfig: PlaySwaggerConfig, swaggerRouteFile: File, swaggerOutputFile: File, streams: TaskStreams): Def.Initialize[Task[Unit]] = Def.task {
+    streams.log info "Generating Swagger"
+
+    val classPath = (classDirectory in Compile).value.toURI.toURL
+    val resourcePaths: Array[URL] = (resourceDirectories in Compile).value.map(_.toURI.toURL).toArray
+    val dependencyPaths: Array[URL] = (dependencyClasspath in Compile).value.map(_.data.toURI.toURL).toArray
+    val allPaths: Array[URL] = resourcePaths ++ dependencyPaths :+ classPath
+
+    println("ClassPath: " + classPath)
+    resourcePaths.foreach(println(_))
+
+    // Parent loader as this ClassLoader
+    implicit val classLoader = new java.net.URLClassLoader(allPaths, this.getClass.getClassLoader)
+
+    val routeFile = swaggerRouteFile.toString
     streams.log debug "Reading Route " + routeFile
     val routes = new RouteWrapper(SwaggerPluginHelper.buildRouteRules(routeFile, ""))
     if (routes.router.nonEmpty) {
@@ -99,7 +101,7 @@ object SwaggerPlay {
       reader.readSwaggerConfig()
       val api = reader.read(appClasses)
       val json = Json.pretty(api)
-      val filename = Paths.get(swaggerOutputFile.value.toURI)
+      val filename = Paths.get(swaggerOutputFile.toURI)
       streams.log debug "Writing to " + filename
       println(json)
 

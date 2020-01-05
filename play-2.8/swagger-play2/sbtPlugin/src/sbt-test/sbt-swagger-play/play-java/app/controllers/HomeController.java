@@ -11,6 +11,6 @@ public class HomeController extends Controller {
     @Operation(description = "Index Page")
     @ApiResponse(content = @Content(schema = @Schema(implementation = String.class)))
     public Result index() {
-        return ok();
+        return ok("Hello");
     }
 }
