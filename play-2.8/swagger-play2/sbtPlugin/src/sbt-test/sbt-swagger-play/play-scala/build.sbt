@@ -14,6 +14,6 @@ lazy val module2 = (project in file("module2"))
   .enablePlugins(PlayScala)
 
 lazy val root = (project in file("."))
-  .enablePlugins(PlayScala)
+  .enablePlugins(PlayScala, SwaggerPlayPlugin)
   .dependsOn(module1, module2)
   .aggregate(module1, module2)

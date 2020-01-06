@@ -1,4 +1,4 @@
-organization in ThisBuild := "sg.wjtan"
+ThisBuild / organization := "sg.wjtan"
 //scalaVersion in ThisBuild := "2.13.1"
 
 val coreVersion = "2.0.0-SNAPSHOT"
@@ -111,6 +111,9 @@ lazy val swaggerPlay = project.in(file("core"))
 
 lazy val sbtSwaggerPlay = project.in(file("sbtPlugin"))
   .enablePlugins(SbtPlugin, ScriptedPlugin)
+  .settings(
+    addSbtPlugin("com.typesafe.sbt" %% "sbt-native-packager" % "1.5.2" % Provided),
+    addSbtPlugin("com.typesafe.sbt" %% "sbt-web" % "1.4.4" % Provided))
   .settings(
     name := "sbt-swagger-play",
     version := "0.1-SNAPSHOT",

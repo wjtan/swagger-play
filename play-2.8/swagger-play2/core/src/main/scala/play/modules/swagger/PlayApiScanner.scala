@@ -6,8 +6,6 @@ import com.typesafe.scalalogging._
 import io.swagger.v3.oas.annotations.Hidden
 import io.swagger.v3.oas.integration.SwaggerConfiguration
 import io.swagger.v3.oas.integration.api.{OpenAPIConfiguration, OpenApiScanner}
-import play.api.Environment
-import play.routes.compiler.Route
 
 /**
  * Identifies Play Controllers annotated as Swagger API's.
@@ -22,22 +20,25 @@ class PlayApiScanner (swaggerConfig: PlaySwaggerConfig, route: RouteWrapper, cla
   }
 
   override def classes(): java.util.Set[Class[_]] = {
-    logger.debug("ControllerScanner - looking for controllers with API annotation")
+    logger.debug("ControllerScanner - looking for controllers")
 
     val ignoredRoutes: scala.collection.Seq[String] = Option(config.getIgnoredRoutes).map(_.asScala.toSeq).getOrElse(Seq.empty[String]) ++ swaggerConfig.ignoreRoutes
+
+    val routeNames: Map[String, String] =
+      route.router.map({ case (name, route) => (name, swaggerConfig.basePath + route.path.toString)})
 
     val routes0 = route.router
     val routes1 =
       if (swaggerConfig.onlyRoutes.isEmpty)
         routes0
       else
-        routes0.filter({ case (_, route) => startsWith(swaggerConfig.onlyRoutes, swaggerConfig.basePath + route.path.toString) })
+        routes0.filterKeys(name => startsWith(swaggerConfig.onlyRoutes, routeNames(name)))
 
    val routes2 =
      if (ignoredRoutes.isEmpty)
        routes1
      else
-       routes1.filter({ case (_, route) => !startsWith(ignoredRoutes, swaggerConfig.basePath + route.path.toString) })
+       routes1.filterKeys(name => !startsWith(ignoredRoutes, routeNames(name)))
 
     // get controller names from application routes
     val controllers: List[String] =

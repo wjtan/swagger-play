@@ -1,18 +1,23 @@
 package sg.wjtan.sbtSwaggerPlay
 
-import io.swagger.v3.core.util.Json
+import com.typesafe.sbt.packager.archetypes.JavaAppPackaging
+import com.typesafe.sbt.packager.universal.UniversalPlugin.autoImport._
+import com.typesafe.sbt.web.Import._
+
+import io.swagger.v3.core.util.Json // package conflict with sbt.io
+import play.modules.swagger._
 
 import scala.collection.JavaConverters._
 import java.nio.file.{ Files, Paths, StandardOpenOption }
-import play.modules.swagger._
 
 import sbt._
 import sbt.Keys._
 import sbt.plugins.JvmPlugin
 
+
 object SwaggerPlayPlugin extends AutoPlugin {
 
-  override def trigger = allRequirements
+  override def trigger = noTrigger
   override def requires = JvmPlugin
 
   object autoImport {
@@ -27,9 +32,10 @@ object SwaggerPlayPlugin extends AutoPlugin {
     val swaggerLicenseUrl = settingKey[Option[URL]]("License URL")
     val swaggerIgnoreRoutes = settingKey[Seq[String]]("Ignore routes")
     val swaggerAcceptRoutes = settingKey[Seq[String]]("Accept only routes. Empty to accept all routes.")
-    val swaggerRouteFile = settingKey[File]("Location of swagger file")
-    val swaggerOutputFile = settingKey[File]("Output path for swagger")
-    val swaggerTask = TaskKey[Unit]("swagger", "Generate swagger.json")
+    val swaggerRouteFile = settingKey[File]("Location of route file")
+    val swaggerTarget = settingKey[File]("the location of the swagger documentation in your packaged app.")
+    val swaggerFilename = settingKey[String]("the swagger filename the swagger documentation in your packaged app")
+    val swagger = TaskKey[Unit]("swagger", "Generate swagger.json")
   }
 
   val swaggerConfig = TaskKey[PlaySwaggerConfig]("swagger-config")
@@ -49,7 +55,8 @@ object SwaggerPlayPlugin extends AutoPlugin {
     swaggerIgnoreRoutes := Seq.empty,
     swaggerAcceptRoutes := Seq.empty,
     swaggerRouteFile := file("routes"),
-    swaggerOutputFile := file("public/swagger.json"),
+    swaggerTarget := file("public"),
+    swaggerFilename := "swagger.json",
     swaggerConfig := PlaySwaggerConfig(
       version = swaggerApiVersion.value,
       description = swaggerDescription.value,
@@ -63,10 +70,17 @@ object SwaggerPlayPlugin extends AutoPlugin {
       ignoreRoutes = swaggerIgnoreRoutes.value,
       onlyRoutes = swaggerAcceptRoutes.value,
       filterClass = None
-    )
-  ) ++ inConfig(Compile)(Seq(
-    swaggerTask := Def.taskDyn { SwaggerPlay.generateTask(swaggerConfig.value, swaggerRouteFile.value, swaggerOutputFile.value, streams.value) }.value
-  ))
+    ),
+    swagger := Def.taskDyn { SwaggerPlay.generateTask(swaggerConfig.value, swaggerRouteFile.value, swaggerTarget.value / swaggerFilename.value, streams.value) }.value,
+    unmanagedResourceDirectories in Assets += swaggerTarget.value,
+    mappings in (Compile, packageBin) += {
+      val file = swaggerTarget.value / swaggerFilename.value
+      file -> file.toString
+    }, //include it in the unmanagedResourceDirectories in Assets doesn't automatically include it package
+    packageBin in Universal := (packageBin in Universal).dependsOn(swagger).value,
+    run := (run in Compile).dependsOn(swagger).evaluated,
+    stage := stage.dependsOn(swagger).value
+  )
 
   //override lazy val buildSettings = Seq()
 
@@ -75,18 +89,15 @@ object SwaggerPlayPlugin extends AutoPlugin {
 
 object SwaggerPlay {
   def generateTask(swaggerConfig: PlaySwaggerConfig, swaggerRouteFile: File, swaggerOutputFile: File, streams: TaskStreams): Def.Initialize[Task[Unit]] = Def.task {
-    streams.log info "Generating Swagger"
+    streams.log info s"[${name.value}] Generating Swagger"
 
     val classPath = (classDirectory in Compile).value.toURI.toURL
-    val resourcePaths: Array[URL] = (resourceDirectories in Compile).value.map(_.toURI.toURL).toArray
-    val dependencyPaths: Array[URL] = (dependencyClasspath in Compile).value.map(_.data.toURI.toURL).toArray
-    val allPaths: Array[URL] = resourcePaths ++ dependencyPaths :+ classPath
-
-    println("ClassPath: " + classPath)
-    resourcePaths.foreach(println(_))
+    val resourcePaths: List[URL] = (resourceDirectories in Compile).value.map(_.toURI.toURL).toList
+    val dependencyPaths: List[URL] = (dependencyClasspath in Compile).value.map(_.data.toURI.toURL).toList
+    val allPaths: List[URL] = resourcePaths ++ dependencyPaths :+ classPath
 
     // Parent loader as this ClassLoader
-    implicit val classLoader = new java.net.URLClassLoader(allPaths, this.getClass.getClassLoader)
+    implicit val classLoader = new java.net.URLClassLoader(allPaths.toArray, this.getClass.getClassLoader)
 
     val routeFile = swaggerRouteFile.toString
     streams.log debug "Reading Route " + routeFile
@@ -103,11 +114,11 @@ object SwaggerPlay {
       val json = Json.pretty(api)
       val filename = Paths.get(swaggerOutputFile.toURI)
       streams.log debug "Writing to " + filename
-      println(json)
+      streams.log verbose json
 
       Files.write(filename, json.getBytes, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)
     } else {
-      streams.log info "No routes"
+      streams.log error "No routes"
     }
   }
 }
