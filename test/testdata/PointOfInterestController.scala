@@ -1,11 +1,11 @@
 package testdata
 
 import io.swagger.annotations._
-import play.api.mvc.Controller
-import play.mvc.{Result, Http}
+import play.mvc.{ Result, Http }
+import play.api.mvc.InjectedController
 
 @Api(value = "/apitest/pointsofinterest", description = "Points of interest")
-class PointOfInterestController extends Controller {
+class PointOfInterestController extends InjectedController {
 
   @ApiOperation(value = "Get points of interest",
     notes = "Returns points of interest",
@@ -19,9 +19,9 @@ class PointOfInterestController extends Controller {
   @ApiImplicitParams(Array(
     new ApiImplicitParam(value = "Token for logged in user.", name = "Authorization", required = false, dataType = "string", paramType = "header")))
   def list(@ApiParam(value = "Minimum easting for provided extent", required = true, defaultValue = "-19448.67") eastingMin: Double,
-          @ApiParam(value = "Minimum northing for provided extent", required = true, defaultValue = "2779504.82") northingMin: Double,
-          @ApiParam(value = "Maximum easting for provided extent", required = true, defaultValue = "-17557.26") eastingMax: Double,
-          @ApiParam(value = "Maximum northing for provided extent", required = true, defaultValue = "2782860.09") northingMax: Double): Result = {
+    @ApiParam(value = "Minimum northing for provided extent", required = true, defaultValue = "2779504.82") northingMin: Double,
+    @ApiParam(value = "Maximum easting for provided extent", required = true, defaultValue = "-17557.26") eastingMax: Double,
+    @ApiParam(value = "Maximum northing for provided extent", required = true, defaultValue = "2782860.09") northingMax: Double): Result = {
     play.mvc.Results.ok
   }
 }

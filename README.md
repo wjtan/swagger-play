@@ -6,12 +6,13 @@ The goal of Swagger™ is to define a standard, language-agnostic interface to R
 
 Swagger-play is an integration specifically for the [Play framework](http://www.playframework.org).  It is written in scala but can be used with either java or scala-based play2 applications.
 
-This is the fork of [Swagger Play](https://github.com/wjtan/swagger-play) as their update is not frequent.
+This is the fork of [Swagger Play](https://github.com/swagger-api/swagger-play) as their update is not frequent.
 
 ### Compatibility
 
 Scala Versions | Play Version | Swagger Version | swagger-play version
 ---------------|--------------|-----------------|---------------------
+2.12.3         | 2.6.x        | 2.0             | 1.6.1-SNAPSHOT
 2.11.8         | 2.5.x        | 2.0             | 1.5.4-SNAPSHOT
 2.11.6, 2.11.7 | 2.4.x        | 2.0             | 1.5.2
 2.10.4, 2.11.1 | 2.3.x        | 1.2             | 1.3.12
@@ -25,7 +26,7 @@ You can depend on pre-built libraries in maven central by adding the following d
 
 ```
 libraryDependencies ++= Seq(
-  "io.swagger" %% "swagger-play2" % "1.5.2"
+  "io.swagger" %% "swagger-play2" % "1.6.1-SNAPSHOT"
 )
 ```
 
@@ -132,6 +133,7 @@ This Swagger-Play integration allows you to use [Swagger annotations](https://gi
 ## License
 
 Copyright 2011-2016 SmartBear Software
+
 Copyright 2017-2020 Tan Wen Jun
 
 Licensed under the Apache License, Version 2.0 (the "License");

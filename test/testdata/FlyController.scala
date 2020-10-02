@@ -1,8 +1,8 @@
 package testdata
 
-import play.api.mvc.{Action, Controller}
+import play.api.mvc.InjectedController
 
-object FlyController extends Controller {
+class FlyController extends InjectedController {
 
   def list = Action {
     request =>

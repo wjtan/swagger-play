@@ -25,13 +25,13 @@ import io.swagger.config.FilterFactory
 import io.swagger.core.filter.SpecFilter
 import io.swagger.models.Swagger
 import io.swagger.util.Json
-import play.api.Logger
 import play.api.http.HttpEntity
 import play.api.mvc._
 import play.modules.swagger.ApiListingCache
 
-import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
+import javax.inject.Inject
+import org.slf4j.LoggerFactory
 
 object ErrorResponse {
   val ERROR = 1
@@ -65,8 +65,7 @@ class ErrorResponse(@XmlElement var code: Int, @XmlElement var message: String) 
   def setMessage(message: String) = this.message = message
 }
 
-class ApiHelpController extends SwaggerBaseApiController {
-
+class ApiHelpController @Inject() (cache: ApiListingCache) extends SwaggerBaseApiController(cache) {
   def getResources = Action {
     request =>
       implicit val requestHeader: RequestHeader = request
@@ -92,7 +91,7 @@ class ApiHelpController extends SwaggerBaseApiController {
         case Some(help) => returnValue(request, help)
         case None =>
           val msg = new ErrorResponse(500, "api listing for path " + path + " not found")
-          Logger("swagger").error(msg.message)
+          logger.error(msg.message)
           if (returnXml(request)) {
             InternalServerError.chunked(Source.single(toXmlString(msg).getBytes("UTF-8"))).as("application/xml")
           } else {
@@ -102,7 +101,8 @@ class ApiHelpController extends SwaggerBaseApiController {
   }
 }
 
-class SwaggerBaseApiController extends Controller {
+class SwaggerBaseApiController @Inject() (cache: ApiListingCache) extends InjectedController {
+  val logger = LoggerFactory.getLogger("play.modules.swagger")
 
   protected def returnXml(request: Request[_]) = request.path.contains(".xml")
 
@@ -112,20 +112,20 @@ class SwaggerBaseApiController extends Controller {
    * Get a list of all top level resources
    */
   protected def getResourceListing(host: String)(implicit requestHeader: RequestHeader): Swagger = {
-    Logger("swagger").debug("ApiHelpInventory.getRootResources")
+    logger.debug("ApiHelpInventory.getRootResources")
     val docRoot = ""
-    val queryParams = (for((key, value) <- requestHeader.queryString) yield {
+    val queryParams = (for ((key, value) <- requestHeader.queryString) yield {
       (key, value.toList.asJava)
     }).toMap
-    val cookies = (for(cookie <- requestHeader.cookies) yield {
+    val cookies = (for (cookie <- requestHeader.cookies) yield {
       (cookie.name, cookie.value)
     }).toMap
-    val headers = (for((key, value) <- requestHeader.headers.toMap) yield {
+    val headers = (for ((key, value) <- requestHeader.headers.toMap) yield {
       (key, value.toList.asJava)
     }).toMap
 
     val f = new SpecFilter
-    val l: Option[Swagger] = ApiListingCache.listing(docRoot, host)
+    val l: Option[Swagger] = cache.listing(docRoot, host)
 
     val specs: Swagger = l match {
       case Some(m) => m
@@ -134,10 +134,9 @@ class SwaggerBaseApiController extends Controller {
 
     val hasFilter = Option(FilterFactory.getFilter)
     hasFilter match {
-      case Some(filter) => f.filter(specs, FilterFactory.getFilter, queryParams.asJava, cookies, headers)
+      case Some(filter) => f.filter(specs, FilterFactory.getFilter, queryParams.asJava, cookies.asJava, headers.asJava)
       case None => specs
     }
-
 
   }
 
@@ -145,15 +144,15 @@ class SwaggerBaseApiController extends Controller {
    * Get detailed API/models for a given resource
    */
   protected def getApiListing(resourceName: String, host: String)(implicit requestHeader: RequestHeader): Swagger = {
-    Logger("swagger").debug("ApiHelpInventory.getResource(%s)".format(resourceName))
+    logger.debug("ApiHelpInventory.getResource(%s)".format(resourceName))
     val docRoot = ""
     val f = new SpecFilter
-    val queryParams = requestHeader.queryString.map {case (key, value) => key -> value.toList.asJava}
-    val cookies = requestHeader.cookies.map {cookie => cookie.name -> cookie.value}.toMap.asJava
-    val headers = requestHeader.headers.toMap.map {case (key, value) => key -> value.toList.asJava}
+    val queryParams = requestHeader.queryString.map { case (key, value) => key -> value.toList.asJava }
+    val cookies = requestHeader.cookies.map { cookie => cookie.name -> cookie.value }.toMap.asJava
+    val headers = requestHeader.headers.toMap.map { case (key, value) => key -> value.toList.asJava }
     val pathPart = resourceName
 
-    val l: Option[Swagger] = ApiListingCache.listing(docRoot, host)
+    val l: Option[Swagger] = cache.listing(docRoot, host)
     val specs: Swagger = l match {
       case Some(m) => m
       case _ => new Swagger()
@@ -161,10 +160,10 @@ class SwaggerBaseApiController extends Controller {
     val hasFilter = Option(FilterFactory.getFilter)
 
     val clone = hasFilter match {
-      case Some(filter) => f.filter(specs, FilterFactory.getFilter, queryParams.asJava, cookies, headers)
+      case Some(filter) => f.filter(specs, FilterFactory.getFilter, queryParams.asJava, cookies, headers.asJava)
       case None => specs
     }
-    clone.setPaths(clone.getPaths.filterKeys(_.startsWith(pathPart) ))
+    clone.setPaths(clone.getPaths.asScala.filterKeys(_.startsWith(pathPart)).asJava)
     clone
   }
 
@@ -201,9 +200,9 @@ class SwaggerBaseApiController extends Controller {
   protected def JsonResponse(data: Any) = {
     val jsonBytes = toJsonString(data).getBytes("UTF-8")
     val source = Source.single(jsonBytes).map(ByteString.apply)
-    Result (
-      header = ResponseHeader(200, Map(CONTENT_LENGTH -> jsonBytes.length.toString)),
-      body = HttpEntity.Streamed(source, None, None)
-    ).as ("application/json")
+    Result(
+      header = ResponseHeader(200),
+      body = HttpEntity.Streamed(source, Option(jsonBytes.length), None)
+    ).as("application/json")
   }
 }

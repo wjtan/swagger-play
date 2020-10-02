@@ -2,25 +2,22 @@ package play.modules.swagger
 
 import io.swagger.annotations.Api
 import io.swagger.config._
-import io.swagger.models.{Contact, Info, License, Scheme, Swagger}
+import io.swagger.models.{ Contact, Info, License, Scheme, Swagger }
 import org.apache.commons.lang3.StringUtils
-import play.api.Logger
+import com.typesafe.scalalogging._
 import play.modules.swagger.util.SwaggerContext
-
-import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
+import javax.inject.Inject
 
 /**
-  * Identifies Play Controllers annotated as Swagger API's.
-  * Uses the Play Router to identify Controllers, and then tests each for the API annotation.
-  */
-class PlayApiScanner() extends Scanner with SwaggerConfig {
-
+ * Identifies Play Controllers annotated as Swagger API's.
+ * Uses the Play Router to identify Controllers, and then tests each for the API annotation.
+ */
+class PlayApiScanner @Inject() (playSwaggerConfig: PlaySwaggerConfig, route: RouteWrapper) extends Scanner with SwaggerConfig {
+  private[this] val logger = Logger[PlayApiScanner]
 
   private def updateInfoFromConfig(swagger: Swagger): Swagger = {
-
-    var info = new Info()
-    val playSwaggerConfig = PlayConfigFactory.getConfig
+    val info = new Info()
 
     if (StringUtils.isNotBlank(playSwaggerConfig.description)) {
       info.description(playSwaggerConfig.description);
@@ -54,7 +51,6 @@ class PlayApiScanner() extends Scanner with SwaggerConfig {
   }
 
   override def configure(swagger: Swagger): Swagger = {
-    val playSwaggerConfig = PlayConfigFactory.getConfig
     if (playSwaggerConfig.schemes != null) {
       for (s <- playSwaggerConfig.schemes) swagger.scheme(Scheme.forValue(s))
     }
@@ -69,34 +65,32 @@ class PlayApiScanner() extends Scanner with SwaggerConfig {
   }
 
   override def classes(): java.util.Set[Class[_]] = {
-    Logger("swagger").info("ControllerScanner - looking for controllers with API annotation")
+    logger.debug("ControllerScanner - looking for controllers with API annotation")
 
-
-    var routes = RouteFactory.getRoute().getAll().toList
+    val routes = route.router.toList
 
     // get controller names from application routes
-    val controllers = routes.map { case (_, route) =>
-      s"${route.call.packageName}.${route.call.controller}"
+    val controllers = routes.map {
+      case (_, route) =>
+        s"${route.call.packageName}.${route.call.controller}"
     }.distinct
 
-
-    var list = controllers.collect {
+    val list = controllers.collect {
       case className: String if {
         try {
           SwaggerContext.loadClass(className).getAnnotation(classOf[Api]) != null
         } catch {
           case ex: Exception => {
-            Logger("swagger").error("Problem loading class:  %s. %s: %s".format(className, ex.getClass.getName, ex.getMessage))
+            logger.error("Problem loading class:  %s. %s: %s".format(className, ex.getClass.getName, ex.getMessage))
             false
           }
         }
       } =>
-        Logger("swagger").info("Found API controller:  %s".format(className))
+        logger.debug("Found API controller:  %s".format(className))
         SwaggerContext.loadClass(className)
     }
 
     list.toSet.asJava
-
   }
 
   override def getPrettyPrint(): Boolean = {

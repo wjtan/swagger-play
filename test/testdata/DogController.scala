@@ -1,8 +1,8 @@
 package testdata
 
 import io.swagger.annotations._
-import play.api.mvc.{Action, Controller}
 import scala.concurrent.Future
+import play.api.mvc.InjectedController
 
 // todo - test for these
 @Api(value = "/apitest/dogs", description = "look after the dogs",
@@ -11,22 +11,23 @@ import scala.concurrent.Future
   produces = "application/json, application/xml",
   consumes = "application/json, application/xml",
   protocols = "http, https",
-  authorizations = Array(new Authorization(value="oauth2",
+  authorizations = Array(new Authorization(value = "oauth2",
     scopes = Array(
       new AuthorizationScope(scope = "vet", description = "vet access"),
       new AuthorizationScope(scope = "owner", description = "owner access")
     ))
   )
 )
-object DogController extends Controller {
+object DogController extends InjectedController {
 
-  @ApiOperation(value="addDog0")
-  def add0(id:String) = Action {
+  @ApiOperation(value = "addDog0", response = classOf[String])
+  def add0(id: String) = Action {
     request => Ok("test case")
   }
 
   @ApiOperation(value = "addDog1",
-    httpMethod = "PUT")
+    httpMethod = "PUT",
+    response = classOf[String])
   @ApiImplicitParams(Array(
     new ApiImplicitParam(name = "dog", value = "Dog object to add", required = true, dataType = "testdata.Dog", paramType = "body")))
   def add1 = Action {
@@ -37,7 +38,7 @@ object DogController extends Controller {
     notes = "Adds a dogs better",
     httpMethod = "PUT",
     nickname = "addDog2_nickname",
-    authorizations = Array(new Authorization(value="oauth2",
+    authorizations = Array(new Authorization(value = "oauth2",
       scopes = Array(
         new AuthorizationScope(scope = "vet", description = "vet access"),
         new AuthorizationScope(scope = "owner", description = "owner access")
@@ -56,12 +57,12 @@ object DogController extends Controller {
   @ApiOperation(value = "Add a new Dog",
     notes = "Adds a dogs nicely",
     httpMethod = "PUT",
-    authorizations = Array(new Authorization(value="oauth2",
+    authorizations = Array(new Authorization(value = "oauth2",
       scopes = Array(
         new AuthorizationScope(scope = "vet", description = "vet access"),
         new AuthorizationScope(scope = "owner", description = "owner access")
       )),
-      new Authorization(value="api_key")
+      new Authorization(value = "api_key")
     ),
     consumes = " application/json, text/yaml ",
     protocols = "http, https"
@@ -153,8 +154,7 @@ object DogController extends Controller {
   // Delete a Dog
   @ApiOperation(value = "Delete", notes = "Deletes a user", httpMethod = "DELETE")
   def delete(
-              @ApiParam(name = "dogId", value = "dogId") userId: String)
-  = Action.async {
+    @ApiParam(name = "dogId", value = "dogId") userId: String) = Action.async {
     implicit request => Future.successful(Ok)
   }
 

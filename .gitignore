@@ -18,4 +18,8 @@ project/plugins/project/
 .project
 .settings
 .classpath
+.cache-main
+.cache-tests
+
 # Scala-IDE specific
+bin

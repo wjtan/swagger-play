@@ -3,7 +3,7 @@ import java.io.File
 import play.modules.swagger._
 import org.specs2.mutable._
 import org.specs2.mock.Mockito
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import play.modules.swagger.util.SwaggerContext
 import play.routes.compiler.{ Route => PlayRoute }
 
@@ -27,23 +27,21 @@ PUT /api/dog/:id testdata.DogController.add0(id:String)
     }
   }
 
-  val routesRules = Map(routesList map 
-  { route =>
-    {
-      val routeName = s"${route.call.packageName}.${route.call.controller}$$.${route.call.method}"
-      routeName -> route
-    }
-  } : _*)
-
+  val routesRules = Map(routesList map
+    { route =>
+      {
+        val routeName = s"${route.call.packageName}.${route.call.controller}$$.${route.call.method}"
+        routeName -> route
+      }
+    }: _*)
 
   val route = new RouteWrapper(routesRules)
-  RouteFactory.setRoute(route)
 
   "PlayApiScanner" should {
     "identify correct API classes based on router and API annotations" in {
-      val classes = new PlayApiScanner().classes()
-      
-      classes.toList.length must beEqualTo(2)
+      val classes = new PlayApiScanner(PlaySwaggerConfig(), route).classes()
+
+      classes.asScala.toList.length must beEqualTo(2)
       classes.contains(SwaggerContext.loadClass("testdata.DogController")) must beTrue
       classes.contains(SwaggerContext.loadClass("testdata.CatController")) must beTrue
     }

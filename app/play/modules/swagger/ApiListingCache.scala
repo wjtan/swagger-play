@@ -2,19 +2,24 @@ package play.modules.swagger
 
 import io.swagger.config._
 import io.swagger.models.Swagger
-import play.api.Logger
 
-object ApiListingCache {
+import javax.inject.{ Inject, Singleton }
+import scala.collection.JavaConverters._
+import com.typesafe.scalalogging._
+
+@Singleton
+class ApiListingCache @Inject() (reader: PlayReader) {
+  private[this] val logger = Logger[ApiListingCache]
+
   var cache: Option[Swagger] = None
 
   def listing(docRoot: String, host: String): Option[Swagger] = {
     cache.orElse {
-      Logger("swagger").debug("Loading API metadata")
+      logger.debug("Loading API metadata")
 
       val scanner = ScannerFactory.getScanner()
       val classes = scanner.classes()
-      val reader = new PlayReader(null)
-      var swagger = reader.read(classes)
+      var swagger = reader.read(classes.asScala.toSet)
 
       scanner match {
         case config: SwaggerConfig => {
