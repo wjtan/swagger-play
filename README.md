@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/wjtan/swagger-play.svg?branch=master)](https://travis-ci.org/wjtan/swagger-play)
+[ ![Download](https://api.bintray.com/packages/wjtan/maven/swagger-play2/images/download.svg) ](https://bintray.com/wjtan/maven/swagger-play2/_latestVersion)
 
 # Swagger Play Integration
 
@@ -12,6 +13,7 @@ This is the fork of [Swagger Play](https://github.com/swagger-api/swagger-play) 
 
 Scala Versions | Play Version | Swagger Version | swagger-play version
 ---------------|--------------|-----------------|---------------------
+2.13.1         | 2.8.x        | 2.0             | 1.8.0
 2.12.8         | 2.7.x        | 2.0             | 1.7.0
 2.12.3         | 2.6.x        | 2.0             | 1.6.1-SNAPSHOT
 2.11.8         | 2.5.x        | 2.0             | 1.5.4-SNAPSHOT
@@ -27,15 +29,13 @@ You can depend on pre-built libraries in maven central by adding the following d
 
 ```
 libraryDependencies ++= Seq(
-  "io.swagger" %% "swagger-play2" % "1.7.0"
+  "io.swagger" %% "swagger-play2" % "1.8.0"
 )
 ```
 
 Or you can build from source.
 
 ```
-cd modules/swagger-play2
-
 sbt publishLocal
 ```
 
