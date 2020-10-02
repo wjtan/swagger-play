@@ -12,6 +12,7 @@ This is the fork of [Swagger Play](https://github.com/wjtan/swagger-play) as the
 
 Scala Versions | Play Version | Swagger Version | swagger-play version
 ---------------|--------------|-----------------|---------------------
+2.11.8         | 2.5.x        | 2.0             | 1.5.4-SNAPSHOT
 2.11.6, 2.11.7 | 2.4.x        | 2.0             | 1.5.2
 2.10.4, 2.11.1 | 2.3.x        | 1.2             | 1.3.12
 2.9.1, 2.10.4  | 2.2.x        | 1.2             | 1.3.7
