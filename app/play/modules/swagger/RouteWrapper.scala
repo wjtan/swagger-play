@@ -21,6 +21,23 @@ class RouteWrapper(val router: Map[String, Route]) {
 
 }
 
+object RouteProvider {
+  def buildRouteRules(routes: List[Route]): Map[String,Route] = {
+    Map(routes map
+      { route =>
+        {
+          val routeName =
+            if (route.call.packageName.isDefined) {
+              s"${route.call.packageName.get}.${route.call.controller}$$.${route.call.method}"
+            } else {
+              s"${route.call.controller}$$.${route.call.method}"
+            }
+          (routeName -> route)
+        }
+      }: _*)
+  }
+}
+
 @Singleton
 class RouteProvider @Inject() (router: Router, app: Application) extends Provider[RouteWrapper] {
   private[this] val logger = Logger[RouteProvider]
@@ -74,13 +91,7 @@ class RouteProvider @Inject() (router: Router, app: Application) extends Provide
     parseRoutesHelper(routesFile, "")
   }
 
-  val routesRules = Map(routes map
-    { route =>
-      {
-        val routeName = s"${route.call.packageName}.${route.call.controller}$$.${route.call.method}"
-        (routeName -> route)
-      }
-    }: _*)
+  val routesRules = RouteProvider.buildRouteRules(routes)
 
   val route = new RouteWrapper(routesRules)
 

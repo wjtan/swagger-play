@@ -1,20 +1,18 @@
 name := "swagger-play2"
-version := "1.6.1-SNAPSHOT"
+version := "1.7.0"
 
 checksums in update := Nil
 
-scalaVersion := "2.12.3"
-
-crossScalaVersions := Seq("2.12.3")
+scalaVersion := "2.12.8"
 
 libraryDependencies ++= Seq(
-  "com.fasterxml.jackson.module"  %% "jackson-module-scala"       % "2.8.9",
+  "com.fasterxml.jackson.module"  %% "jackson-module-scala"       % "2.9.8",
   "org.slf4j"          % "slf4j-api"                  % "1.7.25",
-  "com.typesafe.scala-logging" %% "scala-logging"     % "3.5.0",
-  "io.swagger"         % "swagger-core"               % "1.5.16",
-  //"io.swagger"        %% "swagger-scala-module"       % "1.0.4",
-  "com.typesafe.play" %% "routes-compiler"            % "2.6.7",
-  "com.typesafe.play" %% "play-ebean"                 % "4.0.6"            % "test",
+  "com.typesafe.scala-logging" %% "scala-logging"     % "3.9.0",
+  "io.swagger"         % "swagger-core"               % "1.5.21",
+  "io.swagger"        %% "swagger-scala-module"       % "1.0.4",
+  "com.typesafe.play" %% "routes-compiler"            % "2.7.0",
+  "com.typesafe.play" %% "play-ebean"                 % "5.0.1"            % "test",
   "org.specs2"        %% "specs2-core"                % "3.8.9"            % "test",
   "org.specs2"        %% "specs2-mock"                % "3.8.9"            % "test",
   "org.specs2"        %% "specs2-junit"               % "3.8.9"            % "test",
@@ -34,8 +32,8 @@ bintrayRepository := "maven"
 
 bintrayPackage := "swagger-play2"
 
-publishTo := Some("Artifactory Realm" at "https://oss.jfrog.org/artifactory/oss-snapshot-local;build.timestamp=" + new java.util.Date().getTime)
-bintrayReleaseOnPublish := false
+// publishTo := Some("Artifactory Realm" at "https://oss.jfrog.org/artifactory/oss-snapshot-local;build.timestamp=" + new java.util.Date().getTime)
+// bintrayReleaseOnPublish := false
 
 licenses +=("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0.html"))
 

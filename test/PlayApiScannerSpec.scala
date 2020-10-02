@@ -1,12 +1,15 @@
 import java.io.File
 
 import play.modules.swagger._
+import org.junit.runner.RunWith
 import org.specs2.mutable._
 import org.specs2.mock.Mockito
+import org.specs2.runner.JUnitRunner
 import scala.collection.JavaConverters._
 import play.modules.swagger.util.SwaggerContext
 import play.routes.compiler.{ Route => PlayRoute }
 
+@RunWith(classOf[JUnitRunner])
 class PlayApiScannerSpec extends Specification with Mockito {
 
   // set up mock for Play Router
@@ -19,22 +22,14 @@ PUT /api/cat @testdata.CatController.add1
 GET /api/fly testdata.FlyController.list
 PUT /api/dog testdata.DogController.add1
 PUT /api/dog/:id testdata.DogController.add0(id:String)
-                                                       """, new File("")).right.get.collect {
+""", new File("")).right.get.collect {
       case (route: PlayRoute) => {
-        val routeName = s"${route.call.packageName}.${route.call.controller}$$.${route.call.method}"
         route
       }
     }
   }
 
-  val routesRules = Map(routesList map
-    { route =>
-      {
-        val routeName = s"${route.call.packageName}.${route.call.controller}$$.${route.call.method}"
-        routeName -> route
-      }
-    }: _*)
-
+  val routesRules = RouteProvider.buildRouteRules(routesList) 
   val route = new RouteWrapper(routesRules)
 
   "PlayApiScanner" should {

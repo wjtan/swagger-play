@@ -3,28 +3,30 @@ import java.io.File
 import io.swagger.config.ScannerFactory
 import io.swagger.models.{ ModelImpl, HttpMethod }
 import io.swagger.models.parameters.{ QueryParameter, BodyParameter, PathParameter }
-import io.swagger.models.properties.{ RefProperty, ArrayProperty }
+import io.swagger.models.properties.{ RefProperty, ArrayProperty, StringProperty }
+import io.swagger.models.Swagger
+import io.swagger.util.Json
 import play.modules.swagger._
+import play.routes.compiler.{ Route => PlayRoute }
+import org.junit.runner.RunWith
 import org.specs2.mutable._
 import org.specs2.mock.Mockito
-import io.swagger.util.Json
-import scala.collection.JavaConverters._
-import play.routes.compiler.{ Route => PlayRoute }
-import io.swagger.models.Swagger
-import org.junit.runner.RunWith
 import org.specs2.runner.JUnitRunner
-import io.swagger.models.properties.StringProperty
+import scala.collection.JavaConverters._
+
 import org.slf4j.LoggerFactory
 
 @RunWith(classOf[JUnitRunner])
 class PlayApiListingCacheSpec extends Specification with Mockito {
   val logger = LoggerFactory.getLogger("play.modules.swagger")
 
+  //GET /api/search2 testdata.SettlementsSearcherController.searchToo(req:Request,propertyId:String)
+
   // set up mock for Play Router
   val routesList = {
     play.routes.compiler.RoutesFileParser.parseContent("""
 POST /api/document/:settlementId/files/:fileId/accept testdata.DocumentController.accept(settlementId:String,fileId:String)
-GET /api/search testdata.SettlementsSearcherController.search(personalNumber:String,propertyId:String)
+GET /api/search testdata.SettlementsSearcherController.search(req: Request, personalNumber:String, propertyId:String)
 GET /api/pointsofinterest testdata.PointOfInterestController.list(eastingMin:Double,northingMin:Double,eastingMax:Double,northingMax:Double)
 GET /api/dog testdata.DogController.list
 PUT /api/dog testdata.DogController.add1
@@ -36,18 +38,11 @@ PUT /api/dog testdata.DogController.add1
 PUT /api/dog/:id testdata.DogController.add0(id:String)
     """, new File("")).right.get.collect {
       case (route: PlayRoute) =>
-        val routeName = s"${route.call.packageName}.${route.call.controller}$$.${route.call.method}"
         route
     }
   }
 
-  val routesRules = Map(routesList map
-    { route =>
-      {
-        val routeName = s"${route.call.packageName}.${route.call.controller}$$.${route.call.method}"
-        routeName -> route
-      }
-    }: _*)
+  val routesRules = RouteProvider.buildRouteRules(routesList) 
 
   val apiVersion = "test1"
   val basePath = "/api"
@@ -61,8 +56,7 @@ PUT /api/dog/:id testdata.DogController.add0(id:String)
     title = "title",
     termsOfServiceUrl = "http://termsOfServiceUrl",
     license = "license",
-    licenseUrl = "http://licenseUrl"
-  )
+    licenseUrl = "http://licenseUrl")
 
   val swagger = new Swagger()
   val route = new RouteWrapper(routesRules)
@@ -109,6 +103,13 @@ PUT /api/dog/:id testdata.DogController.add0(id:String)
       opSearchGet.getDescription must beEqualTo("Search for a settlement with personal number and property id.")
       opSearchGet.getParameters.get(0).getDescription must beEqualTo("A personal number of one of the sellers.")
       opSearchGet.getParameters.get(1).getDescription must beEqualTo("The cadastre or share id.")
+
+      //val pathSearch2 = swagger.get.getPaths.get("/search2")
+      //pathSearch2.getOperations.size must beEqualTo(1)
+
+      //val opSearchGet2 = pathSearch2.getOperationMap.get(HttpMethod.GET)
+      //opSearchGet2.getParameters.size() must beEqualTo(1)
+      //opSearchGet2.getParameters.get(0).getDescription must beEqualTo("The cadastre or share id.")
 
       val pathPOI = swagger.get.getPaths.get("/pointsofinterest")
       pathPOI.getOperations.size must beEqualTo(1)

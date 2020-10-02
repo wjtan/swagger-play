@@ -1,8 +1,8 @@
-addSbtPlugin("com.typesafe.play" % "sbt-plugin"      % "2.6.1")
+addSbtPlugin("com.typesafe.play" % "sbt-plugin"      % "2.7.4")
 
 addSbtPlugin("com.jsuereth"      % "sbt-pgp"         % "1.0.0")
 
-addSbtPlugin("com.typesafe.sbteclipse" % "sbteclipse-plugin" % "5.2.3")
+addSbtPlugin("com.typesafe.sbteclipse" % "sbteclipse-plugin" % "5.2.4")
 
 // publishing to bintray
-addSbtPlugin("me.lessis" % "bintray-sbt" % "0.3.0")
+addSbtPlugin("org.foundweekends" % "sbt-bintray" % "0.5.4")

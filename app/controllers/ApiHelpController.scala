@@ -65,7 +65,7 @@ class ErrorResponse(@XmlElement var code: Int, @XmlElement var message: String) 
   def setMessage(message: String) = this.message = message
 }
 
-class ApiHelpController @Inject() (cache: ApiListingCache) extends SwaggerBaseApiController(cache) {
+class ApiHelpController @Inject() (cc: ControllerComponents, cache: ApiListingCache) extends SwaggerBaseApiController(cc, cache) {
   def getResources = Action {
     request =>
       implicit val requestHeader: RequestHeader = request
@@ -101,7 +101,7 @@ class ApiHelpController @Inject() (cache: ApiListingCache) extends SwaggerBaseAp
   }
 }
 
-class SwaggerBaseApiController @Inject() (cache: ApiListingCache) extends InjectedController {
+class SwaggerBaseApiController @Inject() (cc: ControllerComponents, cache: ApiListingCache) extends AbstractController(cc)  {
   val logger = LoggerFactory.getLogger("play.modules.swagger")
 
   protected def returnXml(request: Request[_]) = request.path.contains(".xml")

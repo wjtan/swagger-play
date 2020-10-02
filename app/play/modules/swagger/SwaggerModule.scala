@@ -16,7 +16,7 @@ class SwaggerModule extends Module {
     bind[ApiListingCache].toSelf,
 
     bind[SwaggerPlugin].to[SwaggerPluginImpl].eagerly(),
-    bind[ApiHelpController].toSelf.eagerly()
+    bind[ApiHelpController].toSelf
   )
 
 }
